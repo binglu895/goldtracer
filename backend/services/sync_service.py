@@ -1,36 +1,40 @@
-import yfinance as yf
 import requests
 import os
 from datetime import datetime
 from typing import Optional, Dict, Any
-from .calculator import calc_real_yield, calc_pivot_points, fed_watch_logic
+from .calculator import calc_real_yield, calc_pivot_points, fetch_yahoo_finance_raw
 
 class GoldDataSyncer:
     def __init__(self, supabase_client):
         self.supabase = supabase_client
         self.fred_api_key = os.getenv("FRED_API_KEY")
 
-    def fetch_yfinance_data(self, ticker: str) -> Dict[str, Any]:
-        """Fetch basic market data from yfinance."""
+    def fetch_market_data(self, ticker: str) -> Optional[Dict[str, Any]]:
+        """Fetch basic market data using direct API call."""
+        raw = fetch_yahoo_finance_raw(ticker, period="1d")
+        if not raw:
+            return None
+        
         try:
-            t = yf.Ticker(ticker)
-            info = t.fast_info
+            meta = raw['meta']
+            quote = raw['indicators']['quote'][0]
+            
+            last_price = meta['regularMarketPrice']
+            open_price = quote['open'][0]
+            
             return {
                 "ticker": ticker,
-                "last_price": info.last_price,
-                "open_price": info.open_price,
-                "high_price": info.day_high,
-                "low_price": info.day_low,
-                "change_percent": ((info.last_price / info.open_price) - 1) * 100 if info.open_price else 0
+                "last_price": last_price,
+                "open_price": open_price,
+                "high_price": quote['high'][0],
+                "low_price": quote['low'][0],
+                "change_percent": ((last_price / open_price) - 1) * 100 if open_price else 0
             }
         except Exception as e:
-            print(f"Error fetching {ticker}: {e}")
+            print(f"Error parsing market data for {ticker}: {e}")
             return None
 
     def fetch_fred_metric(self, series_id: str) -> Optional[float]:
-        """
-        Fetch data from FRED with 'Last Known Good Value' robustness.
-        """
         if not self.fred_api_key:
             return None
         
@@ -40,53 +44,36 @@ class GoldDataSyncer:
             response.raise_for_status()
             data = response.json()
             if data['observations']:
-                return float(data['observations'][0]['value'])
+                val = data['observations'][0]['value']
+                return float(val) if val != "." else None
         except Exception as e:
-            print(f"FRED Fetch Error for {series_id}: {e}. Falling back to DB cache.")
-            # Mark indicator as stale in DB later if we use previous value
+            print(f"FRED Fetch Error for {series_id}: {e}")
             return None
         return None
 
     def sync_all(self):
-        """Main SOP sync loop."""
-        
-        # 1. High Frequency: yfinance (GC=F, ^TNX, DX-Y.NYB, ZQ=F)
+        # 1. High Frequency Tickeres
         tickers = ["GC=F", "^TNX", "DX-Y.NYB", "ZQ=F"]
         for symbol in tickers:
-            data = self.fetch_yfinance_data(symbol)
+            data = self.fetch_market_data(symbol)
             if data:
                 self.supabase.table("market_data_cache").upsert(data, on_conflict="ticker").execute()
 
-        # 2. Mid Frequency: Macro Indicators & Calculations
-        # Fetch Breakeven Inflation (T10YIE) from FRED
+        # 2. Real Yield
         breakeven = self.fetch_fred_metric("T10YIE")
+        tnx_data = self.fetch_market_data("^TNX")
+        nominal = tnx_data['last_price'] if tnx_data else None
         
-        # Get nominal yield from cache/fresh
-        nominal_yield_data = self.fetch_yfinance_data("^TNX")
-        nominal_yield = nominal_yield_data['last_price'] if nominal_yield_data else None
-        
-        # Real Yield Calculation
-        is_stale = False
-        if breakeven is None:
-            # Fallback strategy: Get last value from macro_indicators
-            last_entry = self.supabase.table("macro_indicators").select("value").eq("indicator_name", "10Y_Real_Yield").execute()
-            if last_entry.data:
-                # We can't really re-calculate accurately if breakeven is missing, 
-                # but we can flag the existing Real Yield as stale.
-                is_stale = True
-            real_yield = None # Or keep old one
-        else:
-            real_yield = calc_real_yield(nominal_yield, breakeven)
-
+        real_yield = calc_real_yield(nominal, breakeven)
         if real_yield is not None:
              self.supabase.table("macro_indicators").upsert({
                  "indicator_name": "10Y_Real_Yield",
                  "value": real_yield,
-                 "is_stale": is_stale,
-                 "source": "FRED + yfinance"
+                 "is_stale": breakeven is None,
+                 "source": "FRED + Yahoo"
              }, on_conflict="indicator_name").execute()
 
-        # 3. Pivot Points (Daily SOP)
+        # 3. Pivot Points
         pivots = calc_pivot_points("GC=F")
         if pivots:
             self.supabase.table("daily_strategy_log").upsert({
@@ -97,9 +84,7 @@ class GoldDataSyncer:
         print("Sync completed successfully.")
 
     def sync_institutional(self):
-        """Low Frequency: CFTC / GLD / Central Banks (e.g. 24h)"""
-        # Scraper logic for CFTC net long would go here.
-        # Placeholder update:
+        # Placeholder
         self.supabase.table("institutional_stats").upsert({
             "category": "GLD_ETF",
             "label": "GLD Holding Change",

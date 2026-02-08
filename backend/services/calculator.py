@@ -1,6 +1,5 @@
-import pandas as pd
-import yfinance as yf
-from typing import Dict
+import requests
+from typing import Dict, Any, Optional
 
 def calc_real_yield(nominal_yield: float, breakeven_inflation: float) -> float:
     """
@@ -20,24 +19,43 @@ def calc_domestic_premium(gold_spot: float, usd_cny: float, domestic_gold_price:
     premium = domestic_gold_price - international_cny_per_gram
     return round(premium, 2)
 
-def calc_pivot_points(ticker: str = "GC=F") -> Dict[str, float]:
+def fetch_yahoo_finance_raw(ticker: str, period: str = "2d") -> Optional[Dict[str, Any]]:
     """
-    使用 standard Pivot Point 公式:
-    P = (H + L + C) / 3
-    R1 = 2P - L
-    S1 = 2P - H
-    R2 = P + (H - L)
-    S2 = P - (H - L)
+    Directly call Yahoo Finance API to avoid heavy pandas/yfinance dependencies.
     """
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={period}&interval=1d"
+    headers = {'User-Agent': 'Mozilla/5.0'}
     try:
-        data = yf.download(ticker, period="2d", interval="1d", progress=False)
-        if data.empty or len(data) < 2:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        return data['chart']['result'][0]
+    except Exception as e:
+        print(f"Error fetching raw Yahoo data for {ticker}: {e}")
+        return None
+
+def calc_pivot_points(ticker: str = "GC=F") -> Optional[Dict[str, float]]:
+    """
+    Standard Pivot Point formula using direct API data.
+    """
+    raw = fetch_yahoo_finance_raw(ticker)
+    if not raw:
+        return None
+    
+    try:
+        indicators = raw['indicators']['quote'][0]
+        # We need yesterday's data (the one before the last one if today is open, or the last one if market is closed)
+        # For simplicity, we take the element at index -2 as 'yesterday' if we have 2 elements
+        if len(indicators['close']) < 2:
             return None
+            
+        h = indicators['high'][-2]
+        l = indicators['low'][-2]
+        c = indicators['close'][-2]
         
-        # Use yesterday's OHLC
-        yesterday = data.iloc[-2]
-        h, l, c = float(yesterday['High']), float(yesterday['Low']), float(yesterday['Close'])
-        
+        if h is None or l is None or c is None:
+            return None
+
         p = (h + l + c) / 3
         r1 = 2 * p - l
         s1 = 2 * p - h
@@ -52,20 +70,13 @@ def calc_pivot_points(ticker: str = "GC=F") -> Dict[str, float]:
             "S2": round(s2, 2)
         }
     except Exception as e:
-        print(f"Error calculating pivot points: {e}")
+        print(f"Error calculating pivots for {ticker}: {e}")
         return None
 
-def fed_watch_logic(zq_price: float) -> Dict[str, any]:
-    """
-    解析 ZQ=F (30-Day Fed Funds Future) 价格。
-    Implied Rate = 100 - Price
-    """
+def fed_watch_logic(zq_price: float) -> Dict[str, Any]:
     if zq_price is None:
         return None
-    
     implied_rate = 100 - zq_price
-    # Simple logic for heuristic probabilities can be expanded 
-    # based on current target range (5.25-5.50)
     return {
         "implied_rate": round(implied_rate, 4),
         "status": "Calculated from ZQ=F"

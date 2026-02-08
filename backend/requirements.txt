@@ -1,12 +1,7 @@
 fastapi
-uvicorn
 supabase
-yfinance
-pandas
 pydantic
 pydantic-settings
 requests
 python-dotenv
 google-generativeai
-pytest
-httpx
