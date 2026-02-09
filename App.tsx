@@ -370,10 +370,13 @@ const App: React.FC = () => {
             </thead>
             <tbody className="divide-y divide-[#232326]/30">
               {[
+                { label: 'USA (美联储)', key: 'USA (Fed) Reserve' },
                 { label: 'PBoC (中国央行)', key: 'PBoC Gold Reserve' },
+                { label: 'NBP (波兰央行)', key: 'NBP (Poland) Reserve' },
                 { label: 'CBRT (土耳其央行)', key: 'CBRT Gold Reserve' },
                 { label: 'RBI (印度央行)', key: 'RBI Gold Reserve' }
               ].map((item, idx) => {
+
                 const data = (dashboard?.institutional || []).find(s => s.label === item.key);
                 const val = data?.value ? Number(data.value).toLocaleString() + 't' : '---';
                 const chg = data?.change_value ? (Number(data.change_value) >= 0 ? '+' : '') + Number(data.change_value).toFixed(1) + 't' : '+0.0t';
