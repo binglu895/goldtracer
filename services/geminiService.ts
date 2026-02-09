@@ -7,15 +7,19 @@ let genAIInstance: any = null;
 const getAIInstance = () => {
   if (genAIInstance) return genAIInstance;
 
-  // Try common naming conventions for Vite/Vercel
-  const apiKey = import.meta.env.VITE_GEMINI_API_KEY ||
-    import.meta.env.VITE_API_KEY ||
-    import.meta.env.GEMINI_API_KEY || // Match user's Vercel screenshot
+  // Exhaustive check for the API key across different environments
+  const env = (import.meta as any).env || {};
+  const procEnv = (window as any).process?.env || {};
+
+  const apiKey = env.VITE_GEMINI_API_KEY ||
+    env.GEMINI_API_KEY ||
+    procEnv.VITE_GEMINI_API_KEY ||
+    procEnv.GEMINI_API_KEY ||
     (window as any).VITE_GEMINI_API_KEY ||
     "";
 
-  if (!apiKey) {
-    console.error("AI_CORE: Critical Error - API Key is missing. AI features will be disabled.");
+  if (!apiKey || apiKey.length < 10) {
+    console.error("AI_CORE: API Key is missing or invalid. Found length:", apiKey?.length);
     return null;
   }
 
