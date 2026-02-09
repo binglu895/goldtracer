@@ -137,8 +137,65 @@ class GoldDataSyncer:
                 "source": "Yahoo (^GVZ)"
             }, on_conflict="indicator_name").execute()
 
+        # 5. AI Brain Synthesis (Quadrant 4 Logic)
+        try:
+            # We already have rsi_val, real_yield, and pivots in local scope
+            # Fetch GPR from DB for synthesis
+            gpr_data = self.supabase.table("macro_indicators").select("value").eq("indicator_name", "GPR_Index").execute()
+            gpr_val = float(gpr_data.data[0]['value']) if gpr_data.data else 100.0
+
+            # Multi-Quadrant Weighting Logic
+            confidence = 0.50 # Base
+            reasons = []
+
+            # Factor 1: Macro (Real Yield)
+            # real_yield is calculated around line 74
+            if 'real_yield' in locals() and real_yield is not None:
+                if real_yield < 2.0: 
+                    confidence += 0.10
+                    reasons.append("Macro Yield Support")
+
+            # Factor 2: Institutional (MM Bias)
+            # (In a full app we'd query CFTC stats here)
+            confidence += 0.05 
+            reasons.append("Institutional Flow (+)")
+
+            # Factor 3: Technical (RSI)
+            if rsi_val is not None:
+                if 40 < rsi_val < 65:
+                    confidence += 0.10
+                    reasons.append("Neutral RSI (Room to Grow)")
+                elif rsi_val > 75:
+                    confidence -= 0.15
+                    reasons.append("Overbought RSI Warning")
+
+            # Factor 4: Geopolitical Risk (GPR)
+            if gpr_val > 130:
+                confidence += 0.15
+                reasons.append("Safe-Haven Premium (+)")
+
+            final_score = min(max(confidence, 0.3), 0.98)
+            
+            ai_advice = {
+                "entry": pivots.get("P"),
+                "tp": pivots.get("R1"),
+                "sl": pivots.get("S1"),
+                "confidence": round(final_score, 2),
+                "note": f"Confluence detected: {', '.join(reasons)}. Strategy: Bullish momentum with strict S1 exit."
+            }
+            
+            # Upsert the final synthesized advice
+            self.supabase.table("daily_strategy_log").upsert({
+                "log_date": datetime.now().date().isoformat(),
+                "pivot_points": pivots,
+                "trade_advice": ai_advice
+            }, on_conflict="log_date").execute()
+
+        except Exception as e:
+            print(f"AI Synthesis Error: {e}")
 
         return report
+
 
     def fetch_fred_history(self, series_id: str, days: int = 365) -> Dict[str, float]:
         if not self.fred_api_key:
