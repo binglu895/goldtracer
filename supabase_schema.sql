@@ -42,6 +42,7 @@ CREATE TABLE daily_strategy_log (
     ai_summary TEXT,
     pivot_points JSONB, -- { "P": 2332.1, "R1": 2354.8, ... }
     trade_advice JSONB, -- { "entry": 2338.5, "tp": 2375.0, "sl": 2322.0, "confidence": 0.884 }
+    fedwatch JSONB, -- { "meeting_date": "2026-03-18", "prob_pause": 82.4, "prob_cut_25": 17.6, ... }
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
