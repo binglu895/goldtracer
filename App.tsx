@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, Bar, Cell
+  BarChart, Bar, Cell, ReferenceDot
 } from 'recharts';
 import { getMarketAnalysis } from './services/geminiService';
 import { ChatMessage, IntelMessage } from './types';
@@ -255,7 +255,7 @@ const App: React.FC = () => {
                     tick={{ fill: '#4b5563' }}
                     tickFormatter={(val) => val && typeof val === 'string' ? val.split('-').slice(1).join('/') : val}
                   />
-                  <YAxis hide domain={['auto', 'auto']} />
+                  <YAxis hide domain={['dataMin - 0.05', 'dataMax + 0.05']} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#121214', border: '1px solid #232326', fontSize: '10px' }}
                     labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
@@ -263,7 +263,44 @@ const App: React.FC = () => {
                   <Area type="monotone" dataKey="nominal_yield" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorNominal)" name="Nominal" />
                   <Area type="monotone" dataKey="real_yield" stroke="#fbbf24" strokeWidth={2} fillOpacity={1} fill="url(#colorReal)" name="Real" />
                   <Area type="monotone" dataKey="breakeven_inflation" stroke="#a855f7" strokeWidth={1} strokeDasharray="3 3" fillOpacity={1} fill="url(#colorInf)" name="Inflation" />
+
+                  {/* Highlight Peak & Bottom for Nominal Yield */}
+                  {macroHistory.length > 3 && (() => {
+                    const validData = macroHistory.filter(d => d.nominal_yield != null);
+                    if (validData.length === 0) return null;
+                    const vals = validData.map(d => d.nominal_yield);
+                    const high = Math.max(...vals);
+                    const low = Math.min(...vals);
+                    const highPoint = validData.find(d => d.nominal_yield === high);
+                    const lowPoint = validData.find(d => d.nominal_yield === low);
+
+                    return (
+                      <>
+                        {highPoint && (
+                          <ReferenceDot
+                            x={highPoint.log_date}
+                            y={high}
+                            r={3}
+                            fill="#ef4444"
+                            stroke="#fff"
+                            label={{ position: 'top', value: `H: ${high}%`, fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }}
+                          />
+                        )}
+                        {lowPoint && (
+                          <ReferenceDot
+                            x={lowPoint.log_date}
+                            y={low}
+                            r={3}
+                            fill="#22c55e"
+                            stroke="#fff"
+                            label={{ position: 'bottom', value: `L: ${low}%`, fill: '#22c55e', fontSize: 10, fontWeight: 'bold' }}
+                          />
+                        )}
+                      </>
+                    );
+                  })()}
                 </AreaChart>
+
               </ResponsiveContainer>
             </div>
           </div>
