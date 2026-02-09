@@ -1,0 +1,15 @@
+name: Trigger Data Sync
+
+on:
+  schedule:
+    - cron: '*/15 * * * *' # Run every 15 minutes
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  sync-data:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Vercel Sync Endpoint
+        run: |
+          # Replace 'goldtracer.vercel.app' with your actual Vercel domain if different
+          curl -X GET https://goldtracer.vercel.app/api/cron/sync
