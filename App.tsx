@@ -516,24 +516,35 @@ const App: React.FC = () => {
               <div>
                 <span className="text-[9px] text-gray-500 font-bold uppercase block mb-1">GVZ 黄金波动率指数</span>
                 <div className="flex items-end justify-between">
-                  <span className="text-3xl font-black font-mono text-amber-500">18.42</span>
+                  <span className="text-3xl font-black font-mono text-amber-500">
+                    {getMacro('GVZ_Index')?.value ? Number(getMacro('GVZ_Index').value).toFixed(2) : '18.42'}
+                  </span>
                   <div className="text-right">
-                    <span className="text-green-500 text-[10px] font-bold block">▲ +2.1%</span>
-                    <span className="text-[8px] text-gray-500 uppercase">High Volatility Alert</span>
+                    <span className="text-green-500 text-[10px] font-bold block">▲ LIVE</span>
+                    <span className="text-[8px] text-gray-500 uppercase">Volatility Risk Monitor</span>
                   </div>
                 </div>
               </div>
               <div>
                 <span className="text-[9px] text-gray-500 font-bold uppercase block mb-1">RSI (14) 指标状态</span>
-                <div className="flex items-center gap-3">
-                  <span className="text-xl font-bold font-mono">68.5</span>
-                  <div className="flex-1 h-2 bg-white/5 rounded-full relative overflow-hidden">
-                    <div className="absolute left-[30%] right-[30%] top-0 bottom-0 border-x border-white/20"></div>
-                    <div className="h-full bg-amber-500" style={{ width: '68.5%' }}></div>
-                  </div>
-                  <span className="text-[9px] text-amber-500 uppercase font-black">Near Overbought</span>
-                </div>
+                {(() => {
+                  const rsiVal = getMacro('RSI_14')?.value ? Number(getMacro('RSI_14').value) : 68.5;
+                  const status = rsiVal > 70 ? 'Overbought' : rsiVal < 30 ? 'Oversold' : 'Neutral';
+                  const color = rsiVal > 70 ? 'text-red-500' : rsiVal < 30 ? 'text-green-500' : 'text-amber-500';
+
+                  return (
+                    <div className="flex items-center gap-3">
+                      <span className="text-xl font-bold font-mono">{rsiVal.toFixed(1)}</span>
+                      <div className="flex-1 h-2 bg-white/5 rounded-full relative overflow-hidden">
+                        <div className="absolute left-[30%] right-[30%] top-0 bottom-0 border-x border-white/20 z-10"></div>
+                        <div className={`h-full ${rsiVal > 70 ? 'bg-red-500' : rsiVal < 30 ? 'bg-green-500' : 'bg-amber-500'}`} style={{ width: `${rsiVal}%` }}></div>
+                      </div>
+                      <span className={`text-[9px] ${color} uppercase font-black`}>{status}</span>
+                    </div>
+                  );
+                })()}
               </div>
+
             </div>
           </div>
         </Card>

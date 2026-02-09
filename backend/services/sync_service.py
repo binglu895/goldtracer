@@ -2,7 +2,7 @@ import requests
 import os
 from datetime import datetime
 from typing import Optional, Dict, Any
-from .calculator import calc_real_yield, calc_pivot_points, fetch_yahoo_finance_raw
+from .calculator import calc_real_yield, calc_pivot_points, fetch_yahoo_finance_raw, calc_rsi, fetch_indicator_price
 
 class GoldDataSyncer:
     def __init__(self, supabase_client):
@@ -119,6 +119,24 @@ class GoldDataSyncer:
                 "pivot_points": pivots,
                 "trade_advice": advice
             }, on_conflict="log_date").execute()
+
+        # 4. RSI & Volatility
+        rsi_val = calc_rsi("GC=F")
+        if rsi_val is not None:
+            self.supabase.table("macro_indicators").upsert({
+                "indicator_name": "RSI_14",
+                "value": rsi_val,
+                "source": "Yahoo (30D Calc)"
+            }, on_conflict="indicator_name").execute()
+            
+        gvz_val = fetch_indicator_price("^GVZ")
+        if gvz_val is not None:
+             self.supabase.table("macro_indicators").upsert({
+                "indicator_name": "GVZ_Index",
+                "value": gvz_val,
+                "source": "Yahoo (^GVZ)"
+            }, on_conflict="indicator_name").execute()
+
 
         return report
 

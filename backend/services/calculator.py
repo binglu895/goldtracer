@@ -84,11 +84,34 @@ def calc_pivot_points(ticker: str = "GC=F") -> Optional[Dict[str, float]]:
         print(f"Error calculating pivots for {ticker}: {e}")
         return None
 
-def fed_watch_logic(zq_price: float) -> Dict[str, Any]:
-    if zq_price is None:
+def calc_rsi(ticker: str = "GC=F", period: int = 14) -> Optional[float]:
+    raw = fetch_yahoo_finance_raw(ticker, period="30d")
+    if not raw or 'indicators' not in raw:
         return None
-    implied_rate = 100 - zq_price
-    return {
-        "implied_rate": round(implied_rate, 4),
-        "status": "Calculated from ZQ=F"
-    }
+    try:
+        closes = [c for c in raw['indicators']['quote'][0]['close'] if c is not None]
+        if len(closes) < period + 1:
+            return None
+        
+        changes = [closes[i] - closes[i-1] for i in range(1, len(closes))]
+        gains = [c if c > 0 else 0 for c in changes]
+        losses = [-c if c < 0 else 0 for c in changes]
+        
+        avg_gain = sum(gains[-period:]) / period
+        avg_loss = sum(losses[-period:]) / period
+        
+        if avg_loss == 0:
+            return 100.0
+        
+        rs = avg_gain / avg_loss
+        rsi = 100 - (100 / (1 + rs))
+        return round(rsi, 2)
+    except:
+        return None
+
+def fetch_indicator_price(ticker: str) -> Optional[float]:
+    raw = fetch_yahoo_finance_raw(ticker, period="1d")
+    if not raw or 'meta' not in raw:
+        return None
+    return raw['meta'].get('regularMarketPrice')
+
