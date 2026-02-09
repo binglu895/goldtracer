@@ -3,8 +3,9 @@ import React, { useState, useEffect } from 'react';
 import {
   Bell, Settings, User, Search, Globe, Zap,
   TrendingUp, Activity, BarChart3, MessageSquare,
-  FileText, Download, Clock, ExternalLink, ChevronRight
+  FileText, Download, Clock, ExternalLink, ChevronRight, ShieldAlert
 } from 'lucide-react';
+
 import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell, ReferenceDot
@@ -181,12 +182,25 @@ const App: React.FC = () => {
         </div>
         <div className="w-[1px] h-6 bg-[#232326]"></div>
         <div className="flex items-center gap-4">
+          <span className="text-[10px] font-bold text-gray-500 uppercase">DXY/美元指数</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-lg font-bold font-mono">
+              {getTicker('DX-Y.NYB')?.last_price != null ? getTicker('DX-Y.NYB').last_price.toFixed(2) : '---'}
+            </span>
+            <span className={`text-xs font-bold ${getTicker('DX-Y.NYB')?.change_percent != null && getTicker('DX-Y.NYB').change_percent >= 0 ? 'text-red-500' : 'text-green-500'}`}>
+              {getTicker('DX-Y.NYB')?.change_percent != null ? (getTicker('DX-Y.NYB').change_percent >= 0 ? '+' : '') + getTicker('DX-Y.NYB').change_percent.toFixed(2) + '%' : '---'}
+            </span>
+          </div>
+        </div>
+        <div className="w-[1px] h-6 bg-[#232326]"></div>
+        <div className="flex items-center gap-4">
           <span className="text-[10px] font-bold text-gray-500 uppercase">国内溢价 (CNY/G)</span>
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold font-mono">+3.20</span>
             <span className="text-xs font-bold text-green-500">+0.15%</span>
           </div>
         </div>
+
         <div className="ml-auto flex items-center gap-4 min-w-[300px]">
           <span className="text-[10px] font-bold text-gray-500 uppercase">全球市场情绪监测</span>
           <div className="flex-1 h-1.5 bg-[#121214] rounded-full overflow-hidden relative border border-[#232326]">
@@ -406,17 +420,25 @@ const App: React.FC = () => {
               </div>
               <span className="text-[9px] bg-white/5 px-2 py-1 rounded text-gray-400 font-bold">PREMIUM STEADY</span>
             </div>
-            <div className="bg-[#0c0c0e] p-3 border border-[#232326] rounded-sm flex justify-between items-center">
-              <div>
-                <span className="text-[9px] text-gray-500 uppercase font-bold block mb-1">流动性健康指数 (LHI)</span>
-                <span className="text-lg font-bold font-mono text-green-400">HEALTHY 1.25</span>
-              </div>
-              <div className="flex gap-0.5 items-end">
-                {[2, 3, 5, 4, 6].map((h, i) => <div key={i} className="w-1 bg-green-500/80 rounded-t-sm" style={{ height: h * 3 }}></div>)}
+            <div className="bg-[#0c0c0e] p-3 border border-[#232326] rounded-sm flex justify-between items-center relative overflow-hidden group">
+              <div className="absolute inset-0 bg-red-500/5 group-hover:bg-red-500/10 transition-colors"></div>
+              <div className="relative z-10 w-full">
+                <div className="flex justify-between items-start mb-1">
+                  <span className="text-[9px] text-gray-500 uppercase font-bold">地缘风险因子 (GPR)</span>
+                  <ShieldAlert className="w-3 h-3 text-red-500 animate-pulse" />
+                </div>
+                <div className="flex items-end justify-between">
+                  <span className="text-lg font-bold font-mono text-red-500">142.50</span>
+                  <span className="text-[8px] px-1.5 py-0.5 bg-red-500/20 text-red-500 rounded font-black uppercase tracking-tighter">High Tension</span>
+                </div>
+                <div className="mt-2 h-1 bg-white/5 rounded-full overflow-hidden">
+                  <div className="h-full bg-red-500 animate-[pulse_2s_infinite]" style={{ width: '68%' }}></div>
+                </div>
               </div>
             </div>
           </div>
         </Card>
+
 
         {/* Q3: Technical Edge */}
         <Card title="象限 3: 技术面博弈 (Technical Edge)">
