@@ -24,14 +24,25 @@ def fetch_yahoo_finance_raw(ticker: str, period: str = "2d") -> Optional[Dict[st
     Directly call Yahoo Finance API to avoid heavy pandas/yfinance dependencies.
     """
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={period}&interval=1d"
-    headers = {'User-Agent': 'Mozilla/5.0'}
+    # Use more realistic headers to avoid Vercel/AWS IP blocking
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Cache-Control': 'max-age=0',
+    }
     try:
         response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         data = response.json()
+        if not data['chart']['result']:
+             print(f"Yahoo API returned no result for {ticker}: {data}")
+             return None
         return data['chart']['result'][0]
     except Exception as e:
-        print(f"Error fetching raw Yahoo data for {ticker}: {e}")
+        print(f"Error fetching raw Yahoo data for {ticker}: {type(e).__name__} {e}")
         return None
 
 def calc_pivot_points(ticker: str = "GC=F") -> Optional[Dict[str, float]]:

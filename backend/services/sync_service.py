@@ -52,12 +52,19 @@ class GoldDataSyncer:
         return None
 
     def sync_all(self):
+        report = {"updated": [], "errors": []}
         # 1. High Frequency Tickeres
         tickers = ["GC=F", "^TNX", "DX-Y.NYB", "ZQ=F", "CNY=X"]
         for symbol in tickers:
             data = self.fetch_market_data(symbol)
             if data:
-                self.supabase.table("market_data_cache").upsert(data, on_conflict="ticker").execute()
+                try:
+                    self.supabase.table("market_data_cache").upsert(data, on_conflict="ticker").execute()
+                    report["updated"].append(symbol)
+                except Exception as e:
+                    report["errors"].append(f"DB Error {symbol}: {str(e)}")
+            else:
+                 report["errors"].append(f"Fetch Failed: {symbol}")
 
         # 2. Real Yield
         breakeven = self.fetch_fred_metric("T10YIE")
@@ -98,12 +105,22 @@ class GoldDataSyncer:
         # 3. Pivot Points
         pivots = calc_pivot_points("GC=F")
         if pivots:
+            # Generate simple technical advice from Pivot Points
+            advice = {
+                "entry": pivots.get("P"),
+                "tp": pivots.get("R1"),
+                "sl": pivots.get("S1"),
+                "confidence": 0.65,
+                "note": "Based on Daily Pivot Points"
+            }
+            
             self.supabase.table("daily_strategy_log").upsert({
                 "log_date": datetime.now().date().isoformat(),
-                "pivot_points": pivots
+                "pivot_points": pivots,
+                "trade_advice": advice
             }, on_conflict="log_date").execute()
 
-        print("Sync completed successfully.")
+        return report
 
     def sync_institutional(self):
         # Placeholder

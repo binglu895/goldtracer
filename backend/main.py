@@ -81,9 +81,12 @@ async def trigger_sync():
     
     try:
         syncer = GoldDataSyncer(supabase)
-        syncer.sync_all()
+        report = syncer.sync_all()
         syncer.sync_institutional()
-        return {"status": "Sync executed successfully"}
+        return {
+            "status": "Sync executed successfully",
+            "report": report
+        }
     except Exception as e:
         status_code = 500
         # If it's a timeout or rate limit, we might want to return 200 or 202 to avoid Vercel retrying aggressively

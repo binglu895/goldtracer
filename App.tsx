@@ -390,35 +390,50 @@ const App: React.FC = () => {
 
         {/* Q4: AI Action Center */}
         <Card title="象限 4: AI 智慧行动中心 (AI Action Center)" subtitle="GPT-4o Pro Trading Engine">
-          <div className="bg-[#121214] border-2 border-green-500/30 rounded p-4 mb-4">
-            <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-3">
-                <span className="px-3 py-1 bg-green-500 text-black font-black text-xs rounded-sm">BUY ORDER</span>
-                <h4 className="text-sm font-bold">日内交易策略建议</h4>
+          {/* Dynamic AI Advice */}
+          {(() => {
+            const strategy = dashboard?.today_strategy;
+            const advice = strategy?.trade_advice;
+            const hasAdvice = advice && advice.entry;
+
+            return (
+              <div className="bg-[#121214] border-2 border-green-500/30 rounded p-4 mb-4">
+                <div className="flex justify-between items-start mb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 bg-green-500 text-black font-black text-xs rounded-sm">BUY ORDER</span>
+                    <h4 className="text-sm font-bold">日内交易策略建议 (PIVOT)</h4>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[9px] text-gray-500 uppercase block">Confidence Score</span>
+                    <span className="text-lg font-bold font-mono text-green-500">{hasAdvice ? (advice.confidence * 100).toFixed(1) + '%' : '--%'}</span>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2 mb-4">
+                  <div className="bg-black/40 p-3 rounded text-center border border-[#232326]">
+                    <span className="text-[9px] text-gray-500 uppercase block mb-1">入场点位 (Pivot)</span>
+                    <span className="text-xl font-bold font-mono text-amber-500 underline decoration-amber-500/30">
+                      {hasAdvice ? advice.entry : '---'}
+                    </span>
+                  </div>
+                  <div className="bg-black/40 p-3 rounded text-center border border-[#232326]">
+                    <span className="text-[9px] text-gray-500 uppercase block mb-1">目标止盈 (R1)</span>
+                    <span className="text-xl font-bold font-mono text-green-500 underline decoration-green-500/30">
+                      {hasAdvice ? advice.tp : '---'}
+                    </span>
+                  </div>
+                  <div className="bg-black/40 p-3 rounded text-center border border-red-500/20">
+                    <span className="text-[9px] text-gray-500 uppercase block mb-1">严格止损 (S1)</span>
+                    <span className="text-xl font-bold font-mono text-red-500 underline decoration-red-500/30">
+                      {hasAdvice ? advice.sl : '---'}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-400 italic bg-white/5 p-3 rounded border-l-2 border-amber-500">
+                  {hasAdvice ? `逻辑：${advice.note || '价格目前处于枢轴点附近，建议依据关键点位部署。'}` : 'Waiting for market data synchronization...'}
+                </p>
               </div>
-              <div className="text-right">
-                <span className="text-[9px] text-gray-500 uppercase block">Confidence Score</span>
-                <span className="text-lg font-bold font-mono text-green-500">88.4%</span>
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 mb-4">
-              <div className="bg-black/40 p-3 rounded text-center border border-[#232326]">
-                <span className="text-[9px] text-gray-500 uppercase block mb-1">入场点位 (Entry)</span>
-                <span className="text-xl font-bold font-mono text-amber-500 underline decoration-amber-500/30">2338.50</span>
-              </div>
-              <div className="bg-black/40 p-3 rounded text-center border border-[#232326]">
-                <span className="text-[9px] text-gray-500 uppercase block mb-1">目标止盈 (TP)</span>
-                <span className="text-xl font-bold font-mono text-green-500 underline decoration-green-500/30">2375.00</span>
-              </div>
-              <div className="bg-black/40 p-3 rounded text-center border border-red-500/20">
-                <span className="text-[9px] text-gray-500 uppercase block mb-1">严格止损 (SL)</span>
-                <span className="text-xl font-bold font-mono text-red-500 underline decoration-red-500/30">2322.00</span>
-              </div>
-            </div>
-            <p className="text-[11px] text-gray-400 italic bg-white/5 p-3 rounded border-l-2 border-amber-500">
-              逻辑：价格目前处于MA20上方强势整理，10年期美债实际收益率出现回落迹象。建议在2338.50支撑位附近建立多头头寸，博弈晚间CPI数据落地后的空头回补行情。
-            </p>
-          </div>
+            );
+          })()}
 
           <div className="bg-black/20 border border-[#232326] rounded-sm flex flex-col h-[400px]">
             <div className="p-3 border-b border-[#232326] flex justify-between items-center">
