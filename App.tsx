@@ -269,7 +269,7 @@ const App: React.FC = () => {
                     tick={{ fill: '#4b5563' }}
                     tickFormatter={(val) => val && typeof val === 'string' ? val.split('-').slice(1).join('/') : val}
                   />
-                  <YAxis hide domain={['dataMin - 0.05', 'dataMax + 0.05']} />
+                  <YAxis hide domain={['dataMin', 'dataMax']} allowDecimals={true} />
                   <Tooltip
                     contentStyle={{ backgroundColor: '#121214', border: '1px solid #232326', fontSize: '10px' }}
                     labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
