@@ -152,10 +152,13 @@ def calc_fed_watch(zq_price: float, current_rate: float = 5.33) -> Dict[str, Any
     return {
         "meeting_date": "2026-03-18",
         "meeting_name": "3月18日议息会议",
+        "meeting_time": "美东 14:00 / 北京次日 03:00",
+        "meeting_datetime_utc": "2026-03-18T19:00:00Z",
         "prob_pause": round(prob_pause, 1),
         "prob_cut_25": round(prob_cut, 1),
         "implied_rate": round(implied_rate, 3)
     }
+
 
 def fetch_indicator_price(ticker: str) -> Optional[float]:
     raw = fetch_yahoo_finance_raw(ticker, period="1d")

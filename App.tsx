@@ -341,7 +341,12 @@ const App: React.FC = () => {
                 const pCut = fed?.prob_cut_25 ?? 17.6;
                 return (
                   <>
-                    <span className="text-[10px] text-gray-500 uppercase font-bold block mb-2">{fed?.meeting_name || 'FedWatch 会议概率'}</span>
+                    <div className="mb-2">
+                      <span className="text-[10px] text-gray-500 uppercase font-bold block">{fed?.meeting_name || 'FedWatch 会议概率'}</span>
+                      {fed?.meeting_time && (
+                        <span className="text-[8px] text-amber-500/80 font-mono block mt-0.5">{fed.meeting_time}</span>
+                      )}
+                    </div>
                     <div className="space-y-3">
                       <div>
                         <div className="flex justify-between text-[10px] mb-1"><span>维持利率 (5.25-5.50)</span> <span className="text-amber-500">{pPause}%</span></div>
@@ -356,6 +361,7 @@ const App: React.FC = () => {
                 );
               })()}
             </div>
+
 
             <div className="bg-[#0c0c0e] p-3 border border-[#232326] rounded-sm">
               <span className="text-[10px] text-gray-500 uppercase font-bold block mb-2">美元信用墙 (利息/GDP)</span>
