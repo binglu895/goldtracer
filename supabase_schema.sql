@@ -85,5 +85,6 @@ SELECT
     (SELECT json_agg(i) FROM macro_indicators i) as macro,
     (SELECT json_agg(s) FROM institutional_stats s) as institutional,
     (SELECT row_to_json(d) FROM daily_strategy_log d WHERE log_date = CURRENT_DATE) as today_strategy,
-    (SELECT json_agg(n ORDER BY published_at DESC LIMIT 15) FROM news_stream n) as news;
+    (SELECT json_agg(n) FROM (SELECT * FROM news_stream ORDER BY published_at DESC LIMIT 15) n) as news;
+
 
