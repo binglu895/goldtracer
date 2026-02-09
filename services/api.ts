@@ -12,6 +12,7 @@ export interface DashboardState {
         trade_advice: any;
     };
     analysis_sop: any;
+    news: any[];
 }
 
 export const fetchDashboardState = async (): Promise<DashboardState | null> => {

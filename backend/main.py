@@ -107,8 +107,14 @@ async def trigger_sync(full: bool = False):
         if hist_report["updated"] > 0:
             report["updated"].append(f"macro_history_{hist_report['updated']}_rows")
             
+        news_report = syncer.sync_news()
+        if news_report["updated"] > 0:
+             report["updated"].append(f"news_{news_report['updated']}_items")
+
         report["errors"].extend(inst_report["errors"])
         report["errors"].extend(hist_report["errors"])
+        report["errors"].extend(news_report["errors"])
+
         
         return {
             "status": "Sync executed successfully",

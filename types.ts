@@ -18,6 +18,8 @@ export interface IntelMessage {
   time: string;
   content: string;
   highlight?: string;
+  source?: string;
+  url?: string;
 }
 
 export enum QuadrantType {

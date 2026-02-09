@@ -223,3 +223,43 @@ class GoldDataSyncer:
             report["errors"].append(f"Institutional Sync Error: {str(e)}")
         
         return report
+    def sync_news(self):
+        """Fetches latest Gold news from Yahoo RSS and stores in DB."""
+        import xml.etree.ElementTree as ET
+        report = {"updated": 0, "errors": []}
+        url = "https://finance.yahoo.com/rss/headline?s=GC=F"
+        try:
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            response = requests.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            tree = ET.fromstring(response.content)
+            items = tree.findall('.//item')
+            
+            to_upsert = []
+            for item in items:
+                title = item.find('title').text
+                link = item.find('link').text
+                pub_date_raw = item.find('pubDate').text
+                # Convert RSS date to ISO. Standard RSS: Mon, 09 Feb 2026 01:22:05 +0000
+                try:
+                    dt = datetime.strptime(pub_date_raw, "%a, %d %b %Y %H:%M:%S %z")
+                    pub_date = dt.isoformat()
+                except:
+                    pub_date = datetime.now().isoformat()
+
+                to_upsert.append({
+                    "title": title,
+                    "url": link,
+                    "published_at": pub_date,
+                    "source": "Yahoo Finance",
+                    "msg_type": "DATA" if "data" in title.lower() or "report" in title.lower() else "FLASH"
+                })
+
+            if to_upsert:
+                self.supabase.table("news_stream").upsert(to_upsert, on_conflict="title,published_at").execute()
+                report["updated"] = len(to_upsert)
+        except Exception as e:
+            report["errors"].append(f"News Sync Error: {str(e)}")
+        
+        return report

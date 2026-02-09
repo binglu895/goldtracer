@@ -37,9 +37,9 @@ const technicalBars = [
 ];
 
 const intelStream: IntelMessage[] = [
-  { id: '1', type: 'FLASH', time: '14:22:05', content: '美联储理事沃勒：当前数据并不支持急于降息。美元短线走强。', highlight: '突发' },
-  { id: '2', type: 'DATA', time: '14:15:42', content: '印度1月黄金进口量同比大增 45%，至 67吨。实物需求强劲支撑。', highlight: '数据' },
-  { id: '3', type: 'NOTICE', time: '14:02:11', content: '伦敦金银市场协会 (LBMA) 下调年度波动率预期。', highlight: '公告' },
+  { id: '1', type: 'FLASH', time: '14:22:05', content: '美联储理事沃勒：当前数据并不支持急于降息。美元短线走强。', highlight: '突发', url: 'https://finance.yahoo.com/news/feds-waller-says-no-rush-231500350.html' },
+  { id: '2', type: 'DATA', time: '14:15:42', content: '印度1月黄金进口量同比大增 45%，至 67吨。实物需求强劲支撑。', highlight: '数据', url: 'https://www.reuters.com/markets/commodities/indias-jan-gold-imports-jump-as-prices-drop-2024-02-14/' },
+  { id: '3', type: 'NOTICE', time: '14:02:11', content: '伦敦金银市场协会 (LBMA) 下调年度波动率预期。', highlight: '公告', url: 'https://www.lbma.org.uk/' },
   { id: '4', type: 'ALERT', time: '13:45:00', content: 'COMEX 黄金期货市场出现 $4亿 卖盘压制，价格在 2345 遇阻。', highlight: '异动' },
 ];
 
@@ -590,20 +590,31 @@ const App: React.FC = () => {
         <div className="lg:col-span-2">
           <Card title="实时情报流 (Live Intel Stream)" subtitle="LIVE STREAMING" className="h-fit">
             <div className="space-y-4 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
-              {intelStream.map((item) => (
-                <div key={item.id} className="grid grid-cols-[100px_80px_1fr] items-start gap-4 text-[11px] group">
-                  <span className="text-gray-600 font-mono font-bold group-hover:text-gray-400 transition-colors">{item.time}</span>
-                  <span className={`px-2 py-0.5 rounded-sm font-black text-[9px] text-center w-fit ${item.type === 'FLASH' ? 'bg-amber-500 text-black' :
-                    item.type === 'DATA' ? 'bg-green-500 text-black' :
-                      item.type === 'ALERT' ? 'bg-red-500 text-white' : 'bg-[#232326] text-gray-400'
-                    }`}>
-                    [{item.highlight}]
-                  </span>
-                  <p className="text-gray-300 group-hover:text-white transition-colors">
-                    {item.content}
-                  </p>
-                </div>
-              ))}
+              {(dashboard?.news || intelStream).map((item: any, idx: number) => {
+                const timeStr = item.published_at ? new Date(item.published_at).toLocaleTimeString('zh-CN', { hour12: false }) : item.time;
+                const mType = item.msg_type || item.type;
+                const tag = item.highlight || (mType === 'FLASH' ? '快讯' : mType);
+
+                return (
+                  <div key={item.id || idx} className="grid grid-cols-[80px_80px_1fr_30px] items-start gap-4 text-[11px] group">
+                    <span className="text-gray-600 font-mono font-bold group-hover:text-gray-400 transition-colors shrink-0">{timeStr}</span>
+                    <span className={`px-2 py-0.5 rounded-sm font-black text-[9px] text-center w-[60px] shrink-0 ${mType === 'FLASH' ? 'bg-amber-500 text-black' :
+                        mType === 'DATA' ? 'bg-green-500 text-black' :
+                          mType === 'ALERT' ? 'bg-red-500 text-white' : 'bg-[#232326] text-gray-400'
+                      }`}>
+                      [{tag}]
+                    </span>
+                    <p className="text-gray-300 group-hover:text-white transition-colors leading-relaxed">
+                      {item.title || item.content}
+                    </p>
+                    {item.url ? (
+                      <a href={item.url} target="_blank" rel="noreferrer" title="查看研报详情" className="text-gray-600 hover:text-amber-500 transition-colors p-0.5">
+                        <ExternalLink className="w-3.5 h-3.5" />
+                      </a>
+                    ) : <div className="w-3.5"></div>}
+                  </div>
+                );
+              })}
             </div>
           </Card>
         </div>

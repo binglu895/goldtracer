@@ -65,10 +65,25 @@ CREATE TABLE macro_history (
 );
 CREATE INDEX idx_macro_history_date ON macro_history(log_date DESC);
 
+-- 7. Real-time News & Intel Stream
+CREATE TABLE news_stream (
+    id SERIAL PRIMARY KEY,
+    msg_type TEXT DEFAULT 'FLASH', -- FLASH, DATA, NOTICE, ALERT
+    title TEXT NOT NULL,
+    content TEXT,
+    source TEXT,
+    url TEXT,
+    published_at TIMESTAMPTZ DEFAULT NOW(),
+    UNIQUE(title, published_at)
+);
+
 -- Helper table for "Mega-Endpoint" quick fetch
+DROP VIEW IF EXISTS latest_dashboard_state;
 CREATE VIEW latest_dashboard_state AS
 SELECT 
     (SELECT json_agg(m) FROM market_data_cache m) as tickers,
     (SELECT json_agg(i) FROM macro_indicators i) as macro,
     (SELECT json_agg(s) FROM institutional_stats s) as institutional,
-    (SELECT row_to_json(d) FROM daily_strategy_log d WHERE log_date = CURRENT_DATE) as today_strategy;
+    (SELECT row_to_json(d) FROM daily_strategy_log d WHERE log_date = CURRENT_DATE) as today_strategy,
+    (SELECT json_agg(n ORDER BY published_at DESC LIMIT 15) FROM news_stream n) as news;
+
