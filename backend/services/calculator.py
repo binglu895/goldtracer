@@ -157,3 +157,10 @@ def calc_fed_watch(zq_price: float, current_rate: float = 5.33) -> Dict[str, Any
         "implied_rate": round(implied_rate, 3)
     }
 
+def fetch_indicator_price(ticker: str) -> Optional[float]:
+    raw = fetch_yahoo_finance_raw(ticker, period="1d")
+    if not raw or 'meta' not in raw:
+        return None
+    return raw['meta'].get('regularMarketPrice')
+
+

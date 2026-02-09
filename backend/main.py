@@ -101,7 +101,8 @@ async def trigger_sync(full: bool = False):
         inst_report = syncer.sync_institutional()
         
         # Sync history only once a day or if forced
-        hist_report = syncer.sync_macro_history()
+        hist_report = syncer.sync_macro_history(days=365 if full else 7)
+
         
         report["updated"].extend(inst_report["updated"])
         if hist_report["updated"] > 0:

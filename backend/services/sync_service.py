@@ -8,9 +8,14 @@ class GoldDataSyncer:
     def __init__(self, supabase_client):
         self.supabase = supabase_client
         self.fred_api_key = os.getenv("FRED_API_KEY")
+        self.cache = {} # Lifecycle cache to avoid redundant API calls
 
-    def fetch_market_data(self, ticker: str) -> Optional[Dict[str, Any]]:
-        """Fetch basic market data using direct API call."""
+
+    def fetch_market_data(self, ticker: str, force: bool = False) -> Optional[Dict[str, Any]]:
+        """Fetch basic market data with lifecycle caching."""
+        if ticker in self.cache and not force:
+            return self.cache[ticker]
+            
         raw = fetch_yahoo_finance_raw(ticker, period="1d")
         if not raw:
             return None
@@ -18,11 +23,10 @@ class GoldDataSyncer:
         try:
             meta = raw['meta']
             quote = raw['indicators']['quote'][0]
-            
             last_price = meta['regularMarketPrice']
             open_price = quote['open'][0]
             
-            return {
+            data = {
                 "ticker": ticker,
                 "last_price": last_price,
                 "open_price": open_price,
@@ -30,9 +34,12 @@ class GoldDataSyncer:
                 "low_price": quote['low'][0],
                 "change_percent": ((last_price / open_price) - 1) * 100 if open_price else 0
             }
+            self.cache[ticker] = data
+            return data
         except Exception as e:
             print(f"Error parsing market data for {ticker}: {e}")
             return None
+
 
     def fetch_fred_metric(self, series_id: str) -> Optional[float]:
         if not self.fred_api_key:
@@ -231,15 +238,16 @@ class GoldDataSyncer:
             print(f"FRED History Error ({series_id}): {e}")
             return {}
 
-    def sync_macro_history(self):
+    def sync_macro_history(self, days: int = 7):
+        """Optimized to only sync recent history to avoid Vercel timeouts."""
         report = {"updated": 0, "errors": []}
         try:
             # 1. Fetch FRED Inflation History (T10YIE)
-            inflation_hist = self.fetch_fred_history("T10YIE")
+            inflation_hist = self.fetch_fred_history("T10YIE", days=days)
             
             # 2. Fetch Yahoo Nominal History (^TNX)
-            # Use calculator tool helper
-            raw = fetch_yahoo_finance_raw("^TNX", period="1y")
+            raw = fetch_yahoo_finance_raw("^TNX", period=f"{days}d")
+
             nominal_hist = {}
             if raw and 'timestamp' in raw:
                 timestamps = raw['timestamp']
