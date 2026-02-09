@@ -342,13 +342,22 @@ const App: React.FC = () => {
 
         {/* Q2: Institutional & Sentiment */}
         <Card title="象限 2: 机构与情绪 (Institutional & Sentiment)">
-          <div className="bg-[#0c0c0e] p-4 border border-amber-500/20 rounded-sm mb-4 relative overflow-hidden group">
-            <div className="absolute inset-0 bg-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-            <div className="text-center">
-              <span className="text-[10px] text-amber-500 font-black uppercase tracking-[0.2em]">Institutional Bullish Divergence Detected</span>
-              <div className="text-gray-400 text-xs mt-1">Managed Money Net Long: +182,400 Lots (<span className="text-green-500">▲ 4.2%</span>)</div>
-            </div>
-          </div>
+          {(() => {
+            const mm = (dashboard?.institutional || []).find(s => s.label === "Managed Money Net Long");
+            const mmVal = mm?.value ? Number(mm.value).toLocaleString() : '182,400';
+            const mmChange = mm?.change_value ? (Number(mm.change_value) >= 0 ? '▲ ' : '▼ ') + Math.abs(Number(mm.change_value)).toLocaleString() : '▲ 4.2%';
+            const mmColor = (mm?.change_value && Number(mm.change_value) >= 0) || !mm?.change_value ? 'text-green-500' : 'text-red-500';
+
+            return (
+              <div className="bg-[#0c0c0e] p-4 border border-amber-500/20 rounded-sm mb-4 relative overflow-hidden group">
+                <div className="absolute inset-0 bg-amber-500/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                <div className="text-center">
+                  <span className="text-[10px] text-amber-500 font-black uppercase tracking-[0.2em]">Institutional Sentiment Monitor</span>
+                  <div className="text-gray-400 text-xs mt-1">Managed Money Net Long: {mmVal} Lots (<span className={mmColor}>{mmChange}</span>)</div>
+                </div>
+              </div>
+            );
+          })()}
 
           <table className="w-full text-[11px] mb-4">
             <thead>
@@ -360,26 +369,31 @@ const App: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-[#232326]/30">
-              <tr className="hover:bg-white/5 transition-colors">
-                <td className="py-2.5 font-bold">PBoC (中国央行)</td>
-                <td className="text-right text-green-500 font-mono">+16.4t</td>
-                <td className="text-right font-mono">2,250.4t</td>
-                <td className="text-right text-green-500 font-mono">▲ 0.73%</td>
-              </tr>
-              <tr className="hover:bg-white/5 transition-colors">
-                <td className="py-2.5 font-bold">CBRT (土耳其央行)</td>
-                <td className="text-right text-green-500 font-mono">+12.1t</td>
-                <td className="text-right font-mono">552.1t</td>
-                <td className="text-right text-green-500 font-mono">▲ 2.24%</td>
-              </tr>
-              <tr className="hover:bg-white/5 transition-colors">
-                <td className="py-2.5 font-bold">RBI (印度央行)</td>
-                <td className="text-right text-green-500 font-mono">+8.7t</td>
-                <td className="text-right font-mono">812.3t</td>
-                <td className="text-right text-green-500 font-mono">▲ 1.08%</td>
-              </tr>
+              {[
+                { label: 'PBoC (中国央行)', key: 'PBoC Gold Reserve' },
+                { label: 'CBRT (土耳其央行)', key: 'CBRT Gold Reserve' },
+                { label: 'RBI (印度央行)', key: 'RBI Gold Reserve' }
+              ].map((item, idx) => {
+                const data = (dashboard?.institutional || []).find(s => s.label === item.key);
+                const val = data?.value ? Number(data.value).toLocaleString() + 't' : '---';
+                const chg = data?.change_value ? (Number(data.change_value) >= 0 ? '+' : '') + Number(data.change_value).toFixed(1) + 't' : '+0.0t';
+                const pct = data?.value && data?.change_value ? (Number(data.change_value) / Number(data.value) * 100).toFixed(2) + '%' : '0.00%';
+                const isPositive = !data?.change_value || Number(data.change_value) >= 0;
+
+                return (
+                  <tr key={idx} className="hover:bg-white/5 transition-colors">
+                    <td className="py-2.5 font-bold">{item.label}</td>
+                    <td className={`text-right font-mono ${isPositive ? 'text-green-500' : 'text-red-500'}`}>{chg}</td>
+                    <td className="text-right font-mono">{val}</td>
+                    <td className={`text-right font-mono ${isPositive ? 'text-green-500' : 'text-red-500'}`}>
+                      {isPositive ? '▲' : '▼'} {pct}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
+
 
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-[#0c0c0e] p-3 border border-[#232326] rounded-sm flex justify-between items-center">
@@ -599,8 +613,8 @@ const App: React.FC = () => {
                   <div key={item.id || idx} className="grid grid-cols-[80px_80px_1fr_30px] items-start gap-4 text-[11px] group">
                     <span className="text-gray-600 font-mono font-bold group-hover:text-gray-400 transition-colors shrink-0">{timeStr}</span>
                     <span className={`px-2 py-0.5 rounded-sm font-black text-[9px] text-center w-[60px] shrink-0 ${mType === 'FLASH' ? 'bg-amber-500 text-black' :
-                        mType === 'DATA' ? 'bg-green-500 text-black' :
-                          mType === 'ALERT' ? 'bg-red-500 text-white' : 'bg-[#232326] text-gray-400'
+                      mType === 'DATA' ? 'bg-green-500 text-black' :
+                        mType === 'ALERT' ? 'bg-red-500 text-white' : 'bg-[#232326] text-gray-400'
                       }`}>
                       [{tag}]
                     </span>
