@@ -2,7 +2,7 @@ import requests
 import os
 from datetime import datetime
 from typing import Optional, Dict, Any
-from .calculator import calc_real_yield, calc_pivot_points, fetch_yahoo_finance_raw, calc_rsi, fetch_indicator_price
+from .calculator import calc_real_yield, calc_pivot_points, fetch_yahoo_finance_raw, calc_rsi, fetch_indicator_price, calc_fed_watch
 
 class GoldDataSyncer:
     def __init__(self, supabase_client):
@@ -113,6 +113,10 @@ class GoldDataSyncer:
             "1w": pivots_1w
         }
 
+        # 3.1 FedWatch Probability
+        zq_data = self.fetch_market_data("ZQ=F")
+        fed_probs = calc_fed_watch(zq_data['last_price']) if zq_data else {}
+
         if pivots_1d:
             # Generate simple technical advice from Pivot Points
             advice = {
@@ -126,8 +130,10 @@ class GoldDataSyncer:
             self.supabase.table("daily_strategy_log").upsert({
                 "log_date": datetime.now().date().isoformat(),
                 "pivot_points": pivots_all,
-                "trade_advice": advice
+                "trade_advice": advice,
+                "fedwatch": fed_probs
             }, on_conflict="log_date").execute()
+
 
 
         # 4. RSI & Volatility
@@ -198,8 +204,10 @@ class GoldDataSyncer:
             self.supabase.table("daily_strategy_log").upsert({
                 "log_date": datetime.now().date().isoformat(),
                 "pivot_points": pivots_all,
-                "trade_advice": ai_advice
+                "trade_advice": ai_advice,
+                "fedwatch": fed_probs
             }, on_conflict="log_date").execute()
+
 
 
         except Exception as e:

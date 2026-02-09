@@ -335,18 +335,28 @@ const App: React.FC = () => {
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="bg-[#0c0c0e] p-3 border border-[#232326] rounded-sm">
-              <span className="text-[10px] text-gray-500 uppercase font-bold block mb-2">FedWatch 3月会议概率</span>
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-[10px] mb-1"><span>维持利率 (5.25-5.50)</span> <span className="text-amber-500">82.4%</span></div>
-                  <div className="h-1 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-amber-500" style={{ width: '82.4%' }}></div></div>
-                </div>
-                <div>
-                  <div className="flex justify-between text-[10px] mb-1"><span>降息 25BP</span> <span className="text-blue-500">17.6%</span></div>
-                  <div className="h-1 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-blue-500" style={{ width: '17.6%' }}></div></div>
-                </div>
-              </div>
+              {(() => {
+                const fed = dashboard?.today_strategy?.fedwatch;
+                const pPause = fed?.prob_pause ?? 82.4;
+                const pCut = fed?.prob_cut_25 ?? 17.6;
+                return (
+                  <>
+                    <span className="text-[10px] text-gray-500 uppercase font-bold block mb-2">{fed?.meeting_name || 'FedWatch 会议概率'}</span>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex justify-between text-[10px] mb-1"><span>维持利率 (5.25-5.50)</span> <span className="text-amber-500">{pPause}%</span></div>
+                        <div className="h-1 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-amber-500 transition-all duration-1000" style={{ width: `${pPause}%` }}></div></div>
+                      </div>
+                      <div>
+                        <div className="flex justify-between text-[10px] mb-1"><span>降息 25BP</span> <span className="text-blue-500">{pCut}%</span></div>
+                        <div className="h-1 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${pCut}%` }}></div></div>
+                      </div>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
+
             <div className="bg-[#0c0c0e] p-3 border border-[#232326] rounded-sm">
               <span className="text-[10px] text-gray-500 uppercase font-bold block mb-2">美元信用墙 (利息/GDP)</span>
               <div className="flex items-center justify-between">

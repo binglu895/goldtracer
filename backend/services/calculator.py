@@ -127,9 +127,33 @@ def calc_rsi(ticker: str = "GC=F", period: int = 14) -> Optional[float]:
     except:
         return None
 
-def fetch_indicator_price(ticker: str) -> Optional[float]:
-    raw = fetch_yahoo_finance_raw(ticker, period="1d")
-    if not raw or 'meta' not in raw:
-        return None
-    return raw['meta'].get('regularMarketPrice')
+def calc_fed_watch(zq_price: float, current_rate: float = 5.33) -> Dict[str, Any]:
+    """
+    Calculate FedWatch probabilities based on 30-Day Fed Funds Futures (ZQ=F).
+    Simplified model for the next meeting (March 18, 2026).
+    """
+    if zq_price is None:
+        return {}
+    
+    implied_rate = 100 - zq_price
+    
+    # Simple probability of a 25bp cut
+    # Prob = (Current Rate - Implied Rate) / 0.25
+    # If implied is 5.33 and current is 5.33, prob is 0.
+    # If implied is 5.08, prob is 1.0 (100% of 25bp cut)
+    
+    diff = current_rate - implied_rate
+    prob_cut = (diff / 0.25) * 100
+    
+    # Clamp results
+    prob_cut = min(max(prob_cut, 0), 100)
+    prob_pause = 100 - prob_cut
+    
+    return {
+        "meeting_date": "2026-03-18",
+        "meeting_name": "3月18日议息会议",
+        "prob_pause": round(prob_pause, 1),
+        "prob_cut_25": round(prob_cut, 1),
+        "implied_rate": round(implied_rate, 3)
+    }
 
