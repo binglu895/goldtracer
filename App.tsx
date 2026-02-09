@@ -724,16 +724,43 @@ const App: React.FC = () => {
 
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-4 border-r border-[#232326] pr-4">
-            <div className="flex items-center gap-1"><Clock className="w-3 h-3" /> SHA 14:24</div>
-            <div>NY 01:24</div>
-            <div>LDN 06:24</div>
-            <div>TYO 15:24</div>
+            {(() => {
+              const now = new Date();
+              const utcHour = now.getUTCHours();
+
+              const markets = [
+                { name: 'ASIA', start: 0, end: 9, color: 'text-blue-500', label: 'Physical' },
+                { name: 'EURO', start: 7, end: 16, color: 'text-purple-500', label: 'Benchmark' },
+                { name: 'USA', start: 13, end: 22, color: 'text-amber-500', label: 'Speculative' }
+              ];
+
+              return (
+                <div className="flex gap-3">
+                  {markets.map(m => {
+                    const isActive = utcHour >= m.start && utcHour < m.end;
+                    return (
+                      <div key={m.name} className={`flex flex-col items-center gap-0.5 ${isActive ? 'opacity-100' : 'opacity-20'}`}>
+                        <span className={`text-[8px] font-black ${isActive ? m.color : 'text-gray-500'}`}>{m.name}</span>
+                        <div className={`w-8 h-1 rounded-full ${isActive ? (m.name === 'USA' ? 'bg-amber-500' : m.name === 'EURO' ? 'bg-purple-500' : 'bg-blue-500') : 'bg-gray-800'}`}></div>
+                        {isActive && <span className="text-[6px] text-gray-400 scale-75">{m.label}</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+          </div>
+          <div className="flex items-center gap-4 border-r border-[#232326] pr-4">
+            <div className="flex items-center gap-1"><Clock className="w-3 h-3" /> SHA {new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Shanghai' })}</div>
+            <div>NY {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'America/New_York' })}</div>
+            <div>LDN {new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Europe/London' })}</div>
           </div>
           <div className="flex items-center gap-2 text-gray-400">
             <span>Data Sync Active</span>
-            <Activity className="w-3 h-3 text-green-500" />
+            <Activity className="w-3 h-3 text-green-500 animate-[pulse_2s_infinite]" />
           </div>
         </div>
+
       </footer>
     </div>
   );
