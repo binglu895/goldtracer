@@ -82,7 +82,9 @@ async def trigger_sync():
     try:
         syncer = GoldDataSyncer(supabase)
         report = syncer.sync_all()
-        syncer.sync_institutional()
+        inst_report = syncer.sync_institutional()
+        report["updated"].extend(inst_report["updated"])
+        report["errors"].extend(inst_report["errors"])
         return {
             "status": "Sync executed successfully",
             "report": report
