@@ -70,11 +70,27 @@ async def get_charts(category: str):
     # Placeholder for brevity
     return {"category": category, "data": []}
 
+@app.get("/api/macro/history")
+async def get_macro_history(range: str = "1mo"):
+    if not supabase:
+         raise HTTPException(status_code=500, detail="Supabase connection not configured")
+    
+    from datetime import datetime, timedelta
+    now = datetime.now()
+    days_map = {"1d": 1, "1w": 7, "1mo": 30, "3mo": 90, "1y": 365}
+    days = days_map.get(range, 30)
+    cutoff = (now - timedelta(days=days)).strftime('%Y-%m-%d')
+    
+    try:
+        response = supabase.table("macro_history").select("*").gte("log_date", cutoff).order("log_date").execute()
+        return response.data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
 @app.get("/api/cron/sync")
-async def trigger_sync():
+async def trigger_sync(full: bool = False):
     """
     CRON JOB Endpoint for Vercel.
-    This endpoint should be called periodically (e.g. every 10 mins) to refresh data.
     """
     if not supabase:
          raise HTTPException(status_code=500, detail="Supabase connection not configured")
@@ -83,8 +99,17 @@ async def trigger_sync():
         syncer = GoldDataSyncer(supabase)
         report = syncer.sync_all()
         inst_report = syncer.sync_institutional()
+        
+        # Sync history only once a day or if forced
+        hist_report = syncer.sync_macro_history()
+        
         report["updated"].extend(inst_report["updated"])
+        if hist_report["updated"] > 0:
+            report["updated"].append(f"macro_history_{hist_report['updated']}_rows")
+            
         report["errors"].extend(inst_report["errors"])
+        report["errors"].extend(hist_report["errors"])
+        
         return {
             "status": "Sync executed successfully",
             "report": report

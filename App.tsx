@@ -11,17 +11,21 @@ import {
 } from 'recharts';
 import { getMarketAnalysis } from './services/geminiService';
 import { ChatMessage, IntelMessage } from './types';
-import { fetchDashboardState, DashboardState } from './services/api';
+import { fetchDashboardState, DashboardState, fetchMacroHistory } from './services/api';
 
-// --- Mock Data ---
-const yieldData = [
-  { time: '09:00', nominal: 4.15, real: 1.85 },
-  { time: '10:00', nominal: 4.18, real: 1.90 },
-  { time: '11:00', nominal: 4.25, real: 1.98 },
-  { time: '12:00', nominal: 4.21, real: 1.95 },
-  { time: '13:00', nominal: 4.19, real: 1.92 },
-  { time: '14:00', nominal: 4.21, real: 1.95 },
-];
+// --- Sub-components ---
+const Card = ({ title, children, subtitle, className = "" }: any) => (
+  <div className={`bg-[#121214] border border-[#232326] rounded-sm p-4 ${className}`}>
+    <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center gap-2">
+        <div className="w-1 h-4 bg-amber-500 rounded-full"></div>
+        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">{title}</h3>
+      </div>
+      {subtitle && <span className="text-[10px] text-gray-500 font-mono">{subtitle}</span>}
+    </div>
+    {children}
+  </div>
+);
 
 const technicalBars = [
   { name: 'S2', value: 120, color: '#ef4444' },
@@ -39,31 +43,6 @@ const intelStream: IntelMessage[] = [
   { id: '4', type: 'ALERT', time: '13:45:00', content: 'COMEX 黄金期货市场出现 $4亿 卖盘压制，价格在 2345 遇阻。', highlight: '异动' },
 ];
 
-// --- Sub-components ---
-
-const Card = ({ title, children, subtitle, className = "" }: any) => (
-  <div className={`bg-[#121214] border border-[#232326] rounded-sm p-4 ${className}`}>
-    <div className="flex items-center justify-between mb-4">
-      <div className="flex items-center gap-2">
-        <div className="w-1 h-4 bg-amber-500 rounded-full"></div>
-        <h3 className="text-xs font-bold uppercase tracking-wider text-gray-300">{title}</h3>
-      </div>
-      {subtitle && <span className="text-[10px] text-gray-500 font-mono">{subtitle}</span>}
-    </div>
-    {children}
-  </div>
-);
-
-const IndicatorBox = ({ label, value, sub, colorClass = "text-white" }: any) => (
-  <div className="flex flex-col">
-    <span className="text-[10px] text-gray-500 mb-1">{label}</span>
-    <div className="flex items-baseline gap-1">
-      <span className={`text-xl font-bold font-mono ${colorClass}`}>{value}</span>
-      {sub && <span className="text-[10px] text-gray-500">{sub}</span>}
-    </div>
-  </div>
-);
-
 const App: React.FC = () => {
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -72,16 +51,27 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [dashboard, setDashboard] = useState<DashboardState | null>(null);
 
+  // Macro History State
+  const [historyRange, setHistoryRange] = useState('1mo');
+  const [macroHistory, setMacroHistory] = useState<any[]>([]);
+
   useEffect(() => {
     const loadData = async () => {
       const data = await fetchDashboardState();
       if (data) setDashboard(data);
     };
     loadData();
-    // Refresh every 60s
     const interval = setInterval(loadData, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    const loadHistory = async () => {
+      const data = await fetchMacroHistory(historyRange);
+      if (data) setMacroHistory(data);
+    };
+    loadHistory();
+  }, [historyRange]);
 
   const getTicker = (symbol: string) => dashboard?.tickers?.find((t: any) => t.ticker === symbol);
   const getMacro = (name: string) => dashboard?.macro?.find((m: any) => m.indicator_name === name);
@@ -196,23 +186,39 @@ const App: React.FC = () => {
       {/* --- Main Dashboard Content --- */}
       <main className="flex-1 p-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Q1: Macro & Policy */}
-        <Card title="象限 1: 宏观与政策 (Macro & Policy)" subtitle="Last Update: 14:02:11">
+        <Card title="象限 1: 宏观与政策 (Macro & Policy)" subtitle={`Range: ${historyRange.toUpperCase()}`}>
           <div className="mb-6">
-            <div className="flex justify-between items-end mb-4">
+            <div className="flex justify-between items-start mb-4">
               <div>
-                <span className="text-[10px] text-gray-500 block mb-1">10年期美债收益率 (名义/实际)</span>
+                <span className="text-[10px] text-gray-500 block mb-1">10年期美债收益率 (名义/实际/通胀)</span>
                 <span className="text-2xl font-black font-mono">
                   {tnx ? tnx.last_price.toFixed(2) + '%' : '--%'} / {realYield ? realYield.value.toFixed(2) + '%' : '--%'}
                 </span>
               </div>
-              <div className="flex gap-4 text-[10px]">
-                <div className="flex items-center gap-1"><div className="w-2 h-0.5 bg-blue-500"></div> 名义</div>
-                <div className="flex items-center gap-1"><div className="w-2 h-0.5 bg-amber-500"></div> 实际</div>
+              <div className="flex flex-col items-end gap-2">
+                {/* Timeframe Filter */}
+                <div className="flex bg-black/40 p-0.5 rounded border border-white/5">
+                  {['1D', '1W', '1MO', '3MO', '1Y'].map((r) => (
+                    <button
+                      key={r}
+                      onClick={() => setHistoryRange(r.toLowerCase())}
+                      className={`px-2 py-0.5 text-[9px] font-bold rounded-sm transition-all ${historyRange === r.toLowerCase() ? 'bg-amber-500 text-black' : 'text-gray-500 hover:text-white'
+                        }`}
+                    >
+                      {r}
+                    </button>
+                  ))}
+                </div>
+                <div className="flex gap-3 text-[9px] font-bold uppercase tracking-tighter">
+                  <div className="flex items-center gap-1"><div className="w-2 h-0.5 bg-blue-500"></div> 名义</div>
+                  <div className="flex items-center gap-1"><div className="w-2 h-0.5 bg-amber-500"></div> 实际</div>
+                  <div className="flex items-center gap-1"><div className="w-2 h-0.5 bg-purple-500"></div> 通胀</div>
+                </div>
               </div>
             </div>
             <div className="h-48 w-full">
               <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={yieldData}>
+                <AreaChart data={macroHistory}>
                   <defs>
                     <linearGradient id="colorNominal" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
@@ -222,11 +228,27 @@ const App: React.FC = () => {
                       <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.1} />
                       <stop offset="95%" stopColor="#fbbf24" stopOpacity={0} />
                     </linearGradient>
+                    <linearGradient id="colorInf" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#a855f7" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#a855f7" stopOpacity={0} />
+                    </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f1f22" vertical={false} />
-                  <Tooltip contentStyle={{ backgroundColor: '#121214', border: '1px solid #232326' }} />
-                  <Area type="monotone" dataKey="nominal" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorNominal)" />
-                  <Area type="monotone" dataKey="real" stroke="#fbbf24" strokeWidth={2} fillOpacity={1} fill="url(#colorReal)" />
+                  <XAxis
+                    dataKey="log_date"
+                    hide={historyRange === '1d'}
+                    fontSize={9}
+                    tick={{ fill: '#4b5563' }}
+                    tickFormatter={(val) => val.split('-').slice(1).join('/')}
+                  />
+                  <YAxis hide domain={['auto', 'auto']} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#121214', border: '1px solid #232326', fontSize: '10px' }}
+                    labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
+                  />
+                  <Area type="monotone" dataKey="nominal_yield" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorNominal)" name="Nominal" />
+                  <Area type="monotone" dataKey="real_yield" stroke="#fbbf24" strokeWidth={2} fillOpacity={1} fill="url(#colorReal)" name="Real" />
+                  <Area type="monotone" dataKey="breakeven_inflation" stroke="#a855f7" strokeWidth={1} strokeDasharray="3 3" fillOpacity={1} fill="url(#colorInf)" name="Inflation" />
                 </AreaChart>
               </ResponsiveContainer>
             </div>

@@ -54,6 +54,17 @@ CREATE TABLE market_history (
 );
 CREATE INDEX idx_market_history_ticker_time ON market_history(ticker, timestamp DESC);
 
+-- 6. Macro History Data (3-Line Chart: Nominal, Breakeven, Real)
+CREATE TABLE macro_history (
+    id SERIAL PRIMARY KEY,
+    log_date DATE UNIQUE NOT NULL,
+    nominal_yield DECIMAL,
+    breakeven_inflation DECIMAL,
+    real_yield DECIMAL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+CREATE INDEX idx_macro_history_date ON macro_history(log_date DESC);
+
 -- Helper table for "Mega-Endpoint" quick fetch
 CREATE VIEW latest_dashboard_state AS
 SELECT 

@@ -122,6 +122,72 @@ class GoldDataSyncer:
 
         return report
 
+    def fetch_fred_history(self, series_id: str, days: int = 365) -> Dict[str, float]:
+        if not self.fred_api_key:
+            return {}
+        from datetime import timedelta
+        start_date = (datetime.now() - timedelta(days=days)).strftime('%Y-%m-%d')
+        url = f"https://api.stlouisfed.org/fred/series/observations?series_id={series_id}&api_key={self.fred_api_key}&file_type=json&observation_start={start_date}"
+        try:
+            response = requests.get(url, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+            return {obs['date']: float(obs['value']) for obs in data.get('observations', []) if obs['value'] != "."}
+        except Exception as e:
+            print(f"FRED History Error ({series_id}): {e}")
+            return {}
+
+    def sync_macro_history(self):
+        report = {"updated": 0, "errors": []}
+        try:
+            # 1. Fetch FRED Inflation History (T10YIE)
+            inflation_hist = self.fetch_fred_history("T10YIE")
+            
+            # 2. Fetch Yahoo Nominal History (^TNX)
+            # Use calculator tool helper
+            raw = fetch_yahoo_finance_raw("^TNX", period="1y")
+            nominal_hist = {}
+            if raw and 'timestamp' in raw:
+                timestamps = raw['timestamp']
+                closes = raw['indicators']['quote'][0]['close']
+                for i in range(len(timestamps)):
+                    dt = datetime.fromtimestamp(timestamps[i]).strftime('%Y-%m-%d')
+                    if closes[i] is not None:
+                        nominal_hist[dt] = float(closes[i])
+            
+            # 3. Merge and Upsert
+            all_dates = sorted(set(inflation_hist.keys()) | set(nominal_hist.keys()))
+            to_upsert = []
+            
+            # Last known values for filling gaps
+            last_inflation = None
+            last_nominal = None
+            
+            for d in all_dates:
+                inf = inflation_hist.get(d, last_inflation)
+                nom = nominal_hist.get(d, last_nominal)
+                
+                if inf is not None: last_inflation = inf
+                if nom is not None: last_nominal = nom
+                
+                if inf is not None and nom is not None:
+                    to_upsert.append({
+                        "log_date": d,
+                        "nominal_yield": nom,
+                        "breakeven_inflation": inf,
+                        "real_yield": round(nom - inf, 4)
+                    })
+            
+            if to_upsert:
+                # Upsert in chunks to avoid large payload errors
+                for i in range(0, len(to_upsert), 100):
+                    self.supabase.table("macro_history").upsert(to_upsert[i:i+100], on_conflict="log_date").execute()
+                report["updated"] = len(to_upsert)
+        except Exception as e:
+            report["errors"].append(f"Macro History Sync Failed: {str(e)}")
+        
+        return report
+
     def sync_institutional(self):
         report = {"updated": [], "errors": []}
         try:
@@ -135,29 +201,21 @@ class GoldDataSyncer:
                  change_percent = float(gold_data.data[0]['change_percent'] or 0.0)
 
             # 1. GLD ETF Holding (Dynamic Mockup)
-            # Correlate holdings with price levels. Base ~800t + sensitivity
-            # Real world logic: Price up -> ETF Inflows
             gld_holdings = 800 + (gold_price - 2000) * 0.15 
-            gld_change = change_percent * 2.5 # ETF flows often follow price momentum
+            gld_change = change_percent * 2.5 
 
             # 2. CFTC Managed Money (Dynamic Mockup)
-            # Highly correlated with price momentum (High Beta)
-            # Base 150k lots + delta
             managed_money = 150000 + (gold_price - 2000) * 200
             managed_money_change = change_percent * 1500
 
             # 3. Central Bank Reserves (Slow moving, slight noise added)
-            # PBoC ~2264t, slowly accumulating
             pboc_base = 2264.0
             
             self.supabase.table("institutional_stats").upsert([
                 { "category": "GLD_ETF", "label": "GLD Holding Change", "value": round(gld_holdings, 2), "change_value": round(gld_change, 2) },
-                
                 { "category": "CentralBank", "label": "PBoC Gold Reserve", "value": pboc_base, "change_value": 0.0 },
-                # Add slight correlation to price for others to show 'activity'
                 { "category": "CentralBank", "label": "CBRT Gold Reserve", "value": round(560.0 + (gold_price * 0.001), 1), "change_value": 0.0 },
                 { "category": "CentralBank", "label": "RBI Gold Reserve", "value": round(818.0 + (gold_price * 0.002), 1), "change_value": 0.0 },
-
                 { "category": "CFTC", "label": "Managed Money Net Long", "value": int(managed_money), "change_value": int(managed_money_change) }
             ], on_conflict="category,label").execute()
             report["updated"].append("institutional_stats")

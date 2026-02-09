@@ -26,3 +26,16 @@ export const fetchDashboardState = async (): Promise<DashboardState | null> => {
         return null;
     }
 };
+
+export const fetchMacroHistory = async (range: string = '1mo'): Promise<any[]> => {
+    try {
+        const response = await fetch(`${API_BASE_URL}/api/macro/history?range=${range}`);
+        if (!response.ok) {
+            throw new Error(`API Error: ${response.statusText}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error("Failed to fetch macro history:", error);
+        return [];
+    }
+};
