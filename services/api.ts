@@ -1,5 +1,5 @@
-
-const API_BASE_URL = 'http://localhost:8000';
+// Use current origin in production (Vercel handles rewrites), or localhost for dev
+const API_BASE_URL = import.meta.env.PROD ? '' : 'http://localhost:8000';
 
 export interface DashboardState {
     tickers: any[];
@@ -20,8 +20,7 @@ export const fetchDashboardState = async (): Promise<DashboardState | null> => {
         if (!response.ok) {
             throw new Error(`API Error: ${response.statusText}`);
         }
-        const data = await response.json();
-        return data;
+        return await response.json();
     } catch (error) {
         console.error("Failed to fetch dashboard state:", error);
         return null;
