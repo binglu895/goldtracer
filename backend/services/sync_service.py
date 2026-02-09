@@ -102,23 +102,33 @@ class GoldDataSyncer:
              }, on_conflict="indicator_name").execute()
 
 
-        # 3. Pivot Points
-        pivots = calc_pivot_points("GC=F")
-        if pivots:
+        # 3. Pivot Points (Multi-Timeframe)
+        pivots_1d = calc_pivot_points("GC=F", "1d")
+        pivots_4h = calc_pivot_points("GC=F", "4h")
+        pivots_1w = calc_pivot_points("GC=F", "1w")
+
+        pivots_all = {
+            "1d": pivots_1d,
+            "4h": pivots_4h,
+            "1w": pivots_1w
+        }
+
+        if pivots_1d:
             # Generate simple technical advice from Pivot Points
             advice = {
-                "entry": pivots.get("P"),
-                "tp": pivots.get("R1"),
-                "sl": pivots.get("S1"),
+                "entry": pivots_1d.get("P"),
+                "tp": pivots_1d.get("R1"),
+                "sl": pivots_1d.get("S1"),
                 "confidence": 0.65,
                 "note": "Based on Daily Pivot Points"
             }
             
             self.supabase.table("daily_strategy_log").upsert({
                 "log_date": datetime.now().date().isoformat(),
-                "pivot_points": pivots,
+                "pivot_points": pivots_all,
                 "trade_advice": advice
             }, on_conflict="log_date").execute()
+
 
         # 4. RSI & Volatility
         rsi_val = calc_rsi("GC=F")
@@ -177,9 +187,9 @@ class GoldDataSyncer:
             final_score = min(max(confidence, 0.3), 0.98)
             
             ai_advice = {
-                "entry": pivots.get("P"),
-                "tp": pivots.get("R1"),
-                "sl": pivots.get("S1"),
+                "entry": pivots_1d.get("P"),
+                "tp": pivots_1d.get("R1"),
+                "sl": pivots_1d.get("S1"),
                 "confidence": round(final_score, 2),
                 "note": f"Confluence detected: {', '.join(reasons)}. Strategy: Bullish momentum with strict S1 exit."
             }
@@ -187,9 +197,10 @@ class GoldDataSyncer:
             # Upsert the final synthesized advice
             self.supabase.table("daily_strategy_log").upsert({
                 "log_date": datetime.now().date().isoformat(),
-                "pivot_points": pivots,
+                "pivot_points": pivots_all,
                 "trade_advice": ai_advice
             }, on_conflict="log_date").execute()
+
 
         except Exception as e:
             print(f"AI Synthesis Error: {e}")

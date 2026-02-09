@@ -65,6 +65,8 @@ const App: React.FC = () => {
   // Macro History State
   const [historyRange, setHistoryRange] = useState('1mo');
   const [macroHistory, setMacroHistory] = useState<any[]>([]);
+  const [technicalRange, setTechnicalRange] = useState('1D');
+
 
   useEffect(() => {
     const loadData = async () => {
@@ -92,14 +94,18 @@ const App: React.FC = () => {
   const realYield = getMacro('10Y_Real_Yield');
   const tnx = getTicker('^TNX');
 
-  const pivotData = dashboard?.today_strategy?.pivot_points;
-  const pivotList = pivotData ? [
-    { label: 'R2 (强阻力)', val: pivotData.R2, color: 'text-red-400' },
-    { label: 'R1 (弱阻力)', val: pivotData.R1, color: 'text-red-300' },
-    { label: 'PIVOT (多空平衡)', val: pivotData.P, color: 'text-amber-500' },
-    { label: 'S1 (弱支撑)', val: pivotData.S1, color: 'text-green-300' },
-    { label: 'S2 (强支撑)', val: pivotData.S2, color: 'text-green-400' },
+  const allPivots = dashboard?.today_strategy?.pivot_points;
+  // If allPivots is the new nested structure, use it. Else fallback to 1D or the flat structure for backwards compatibility
+  const currentPivots = allPivots ? (allPivots[technicalRange.toLowerCase()] || allPivots) : null;
+
+  const pivotList = currentPivots ? [
+    { label: 'R2 (强阻力)', val: currentPivots.R2, color: 'text-red-400' },
+    { label: 'R1 (弱阻力)', val: currentPivots.R1, color: 'text-red-300' },
+    { label: 'PIVOT (多空平衡)', val: currentPivots.P, color: 'text-amber-500' },
+    { label: 'S1 (弱支撑)', val: currentPivots.S1, color: 'text-green-300' },
+    { label: 'S2 (强支撑)', val: currentPivots.S2, color: 'text-green-400' },
   ] : [];
+
 
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
@@ -115,13 +121,14 @@ const App: React.FC = () => {
     setIsLoading(false);
   };
 
-  const dynamicTechnicalBars = pivotData ? [
-    { name: 'S2', value: pivotData.S2, color: '#ef4444' },
-    { name: 'S1', value: pivotData.S1, color: '#ef4444' },
-    { name: 'Pivot', value: pivotData.P, color: '#22c55e' },
-    { name: 'R1', value: pivotData.R1, color: '#22c55e' },
-    { name: 'R2', value: pivotData.R2, color: '#22c55e' },
+  const dynamicTechnicalBars = currentPivots ? [
+    { name: 'S2', value: currentPivots.S2, color: '#ef4444' },
+    { name: 'S1', value: currentPivots.S1, color: '#ef4444' },
+    { name: 'Pivot', value: currentPivots.P, color: '#22c55e' },
+    { name: 'R1', value: currentPivots.R1, color: '#22c55e' },
+    { name: 'R2', value: currentPivots.R2, color: '#22c55e' },
   ] : technicalBars;
+
 
   return (
     <div className="min-h-screen flex flex-col select-none">
@@ -478,10 +485,18 @@ const App: React.FC = () => {
         {/* Q3: Technical Edge */}
         <Card title="象限 3: 技术面博弈 (Technical Edge)">
           <div className="flex gap-2 mb-4">
-            <button className="px-3 py-1 bg-amber-500 text-black font-black text-[10px] rounded-sm">4H</button>
-            <button className="px-3 py-1 bg-[#232326] text-gray-400 font-bold text-[10px] rounded-sm">1D</button>
-            <button className="px-3 py-1 bg-[#232326] text-gray-400 font-bold text-[10px] rounded-sm">1W</button>
+            {['4H', '1D', '1W'].map((range) => (
+              <button
+                key={range}
+                onClick={() => setTechnicalRange(range)}
+                className={`px-3 py-1 font-black text-[10px] rounded-sm transition-colors ${technicalRange === range ? 'bg-amber-500 text-black' : 'bg-[#232326] text-gray-400 hover:bg-[#2d2d30]'
+                  }`}
+              >
+                {range}
+              </button>
+            ))}
           </div>
+
           <div className="h-48 w-full mb-6 relative">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={dynamicTechnicalBars}>

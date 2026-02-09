@@ -45,18 +45,32 @@ def fetch_yahoo_finance_raw(ticker: str, period: str = "2d") -> Optional[Dict[st
         print(f"Error fetching raw Yahoo data for {ticker}: {type(e).__name__} {e}")
         return None
 
-def calc_pivot_points(ticker: str = "GC=F") -> Optional[Dict[str, float]]:
+def calc_pivot_points(ticker: str = "GC=F", interval: str = "1d") -> Optional[Dict[str, float]]:
     """
     Standard Pivot Point formula using direct API data.
+    Intervals: 4h, 1d, 1w
     """
-    raw = fetch_yahoo_finance_raw(ticker)
-    if not raw:
-        return None
+    y_interval = "1d"
+    range_val = "2d"
     
+    if interval == "4h":
+        y_interval = "4h"
+        range_val = "8h" # Need 2 bars
+    elif interval == "1w":
+        y_interval = "1wk"
+        range_val = "2wk"
+
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={range_val}&interval={y_interval}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    }
     try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        data = response.json()
+        raw = data['chart']['result'][0]
+        
         indicators = raw['indicators']['quote'][0]
-        # We need yesterday's data (the one before the last one if today is open, or the last one if market is closed)
-        # For simplicity, we take the element at index -2 as 'yesterday' if we have 2 elements
         if len(indicators['close']) < 2:
             return None
             
@@ -81,8 +95,9 @@ def calc_pivot_points(ticker: str = "GC=F") -> Optional[Dict[str, float]]:
             "S2": round(s2, 2)
         }
     except Exception as e:
-        print(f"Error calculating pivots for {ticker}: {e}")
+        print(f"Error calculating pivots for {ticker} at {interval}: {e}")
         return None
+
 
 def calc_rsi(ticker: str = "GC=F", period: int = 14) -> Optional[float]:
     raw = fetch_yahoo_finance_raw(ticker, period="30d")
