@@ -1,12 +1,23 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-// Ensure we have a valid API key from window or environment
-const getApiKey = () => {
-  return (window as any).VITE_GEMINI_API_KEY || (window as any).process?.env?.API_KEY || "";
-};
+// Cache for the AI instance
+let genAIInstance: any = null;
 
-const genAI = new GoogleGenAI(getApiKey());
+const getAIInstance = () => {
+  if (genAIInstance) return genAIInstance;
+
+  const apiKey = (window as any).VITE_GEMINI_API_KEY ||
+    (window as any).VITE_API_KEY ||
+    "";
+
+  if (!apiKey) {
+    console.warn("AI_CORE: No API Key found in environment.");
+  }
+
+  genAIInstance = new GoogleGenAI(apiKey);
+  return genAIInstance;
+};
 
 export const getMarketAnalysis = async (userPrompt: string, dashboardContext: any) => {
   if (!dashboardContext) return "AI_CORE: Waiting for system state synchronization...";
@@ -33,7 +44,10 @@ Strategy & FedWatch:
   `;
 
   try {
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" }); // Using a more capable model if available
+    const ai = getAIInstance();
+    // Use the model name from the previous working version if gemini-2.0 fails 
+    // or stick to a safer version
+    const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
 
     const result = await model.generateContent({
       contents: [{ role: "user", parts: [{ text: userPrompt }] }],
@@ -46,23 +60,22 @@ Strategy & FedWatch:
       systemInstruction: `You are AI_CORE (Agent v5.1), a specialized AI Investment Agent for Professional Gold Traders. 
       
       CRITICAL OPERATIONAL STEPS:
-      1. DATA VERIFICATION: Before responding, silently verify if the provided market data has internal conflicts (e.g. DXY and Gold both pumping 5% is an anomaly to flag). 
+      1. DATA VERIFICATION: Before responding, silently verify if the provided market data has internal conflicts. 
       2. CONTEXTUAL AWARENESS: Use the provided context (Time: ${dateStr}, Market State: ${contextSummary}).
       3. PERSONA: You are elite, cynical but objective, focused on Institutional Flows and Macro Policy.
-      4. CHINESE MARKET FOCUS: Always provide specific implications for Chinese investors, specifically domestic Gold ETFs (518880, 159934) and Premium/Discount effects on SHFE Gold vs COMEX.
-      5. NO GENERIC ADVICE: Do not give boilerplate financial advice. Focus on the raw numbers and the 'Why'.
+      4. CHINESE MARKET FOCUS: Always provide specific implications for Chinese investors, specifically domestic Gold ETFs (518880, 159934).
+      5. NO GENERIC ADVICE.
       
       RESPONSE FORMAT:
       - Use professional trading terminology.
-      - Keep it under 250 words unless asked for a deep report.
-      - If data verification fails, start your response with '[DATA_CAUTION]'.`
+      - Keep it under 250 words.
+      - If data verification fails, start with '[DATA_CAUTION]'.`
     });
 
     const response = await result.response;
     return response.text();
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "AI_CORE ERROR: Connection to neural core interrupted. Check API_KEY or network.";
+    return "AI_CORE ERROR: Neural core unresponsive. Please verify API configuration.";
   }
 };
-
