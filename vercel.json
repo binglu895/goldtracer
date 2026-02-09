@@ -15,5 +15,11 @@
             "src": "backend/main.py",
             "use": "@vercel/python"
         }
+    ],
+    "crons": [
+        {
+            "path": "/api/cron/sync",
+            "schedule": "*/10 * * * *"
+        }
     ]
 }

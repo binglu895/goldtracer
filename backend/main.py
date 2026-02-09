@@ -7,6 +7,7 @@ from dotenv import load_dotenv
 
 # Import services
 from .services.analysis_engine import analyze_market_state
+from .services.sync_service import GoldDataSyncer
 
 load_dotenv()
 
@@ -69,12 +70,22 @@ async def get_charts(category: str):
     # Placeholder for brevity
     return {"category": category, "data": []}
 
-@app.post("/api/ai/diagnose")
-async def ai_diagnose(context: Dict[str, Any]):
+@app.get("/api/cron/sync")
+async def trigger_sync():
     """
-    Placeholder for DeepSeek/Google LLM call.
+    CRON JOB Endpoint for Vercel.
+    This endpoint should be called periodically (e.g. every 10 mins) to refresh data.
     """
-    return {
-        "summary": "AI diagnosis based on current terminal state...",
-        "confidence": 0.92
-    }
+    if not supabase:
+         raise HTTPException(status_code=500, detail="Supabase connection not configured")
+    
+    try:
+        syncer = GoldDataSyncer(supabase)
+        syncer.sync_all()
+        syncer.sync_institutional()
+        return {"status": "Sync executed successfully"}
+    except Exception as e:
+        status_code = 500
+        # If it's a timeout or rate limit, we might want to return 200 or 202 to avoid Vercel retrying aggressively
+        # but let's stick to 500 for critical failures.
+        raise HTTPException(status_code=status_code, detail=f"Sync failed: {str(e)}")

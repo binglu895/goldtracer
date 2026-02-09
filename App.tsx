@@ -1,16 +1,17 @@
 
 import React, { useState, useEffect } from 'react';
-import { 
-  Bell, Settings, User, Search, Globe, Zap, 
-  TrendingUp, Activity, BarChart3, MessageSquare, 
+import {
+  Bell, Settings, User, Search, Globe, Zap,
+  TrendingUp, Activity, BarChart3, MessageSquare,
   FileText, Download, Clock, ExternalLink, ChevronRight
 } from 'lucide-react';
-import { 
+import {
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell
 } from 'recharts';
 import { getMarketAnalysis } from './services/geminiService';
 import { ChatMessage, IntelMessage } from './types';
+import { fetchDashboardState, DashboardState } from './services/api';
 
 // --- Mock Data ---
 const yieldData = [
@@ -69,10 +70,39 @@ const App: React.FC = () => {
     { role: 'ai', content: '终端初始化成功。当前金价 2342.15。正在扫描美债、美元指数与CFTC持仓变动...', timestamp: '14:22' }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [dashboard, setDashboard] = useState<DashboardState | null>(null);
+
+  useEffect(() => {
+    const loadData = async () => {
+      const data = await fetchDashboardState();
+      if (data) setDashboard(data);
+    };
+    loadData();
+    // Refresh every 60s
+    const interval = setInterval(loadData, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const getTicker = (symbol: string) => dashboard?.tickers?.find((t: any) => t.ticker === symbol);
+  const getMacro = (name: string) => dashboard?.macro?.find((m: any) => m.indicator_name === name);
+
+  const gold = getTicker('GC=F');
+  const usdCny = getTicker('CNY=X');
+  const realYield = getMacro('10Y_Real_Yield');
+  const tnx = getTicker('^TNX');
+
+  const pivotData = dashboard?.today_strategy?.pivot_points;
+  const pivotList = pivotData ? [
+    { label: 'R2 (强阻力)', val: pivotData.R2, color: 'text-red-400' },
+    { label: 'R1 (弱阻力)', val: pivotData.R1, color: 'text-red-300' },
+    { label: 'PIVOT (多空平衡)', val: pivotData.P, color: 'text-amber-500' },
+    { label: 'S1 (弱支撑)', val: pivotData.S1, color: 'text-green-300' },
+    { label: 'S2 (强支撑)', val: pivotData.S2, color: 'text-green-400' },
+  ] : [];
 
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
-    
+
     const userMsg: ChatMessage = { role: 'user', content: chatInput, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
     setMessages(prev => [...prev, userMsg]);
     setChatInput('');
@@ -84,9 +114,17 @@ const App: React.FC = () => {
     setIsLoading(false);
   };
 
+  const dynamicTechnicalBars = pivotData ? [
+    { name: 'S2', value: pivotData.S2, color: '#ef4444' },
+    { name: 'S1', value: pivotData.S1, color: '#ef4444' },
+    { name: 'Pivot', value: pivotData.P, color: '#22c55e' },
+    { name: 'R1', value: pivotData.R1, color: '#22c55e' },
+    { name: 'R2', value: pivotData.R2, color: '#22c55e' },
+  ] : technicalBars;
+
   return (
     <div className="min-h-screen flex flex-col select-none">
-      {/* --- Top Header --- */}
+      {/* ... header ... */}
       <header className="sticky top-0 z-50 bg-[#080809]/90 backdrop-blur-md border-b border-[#232326] px-4 py-2 flex items-center justify-between">
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2">
@@ -121,16 +159,20 @@ const App: React.FC = () => {
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-bold text-gray-500 uppercase">XAU/USD 现货黄金</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold font-mono">2,342.15</span>
-            <span className="text-xs font-bold text-green-500">+0.82%</span>
+            <span className="text-lg font-bold font-mono">{gold ? gold.last_price.toFixed(2) : '---'}</span>
+            <span className={`text-xs font-bold ${gold?.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {gold ? (gold.change_percent >= 0 ? '+' : '') + gold.change_percent.toFixed(2) + '%' : '---'}
+            </span>
           </div>
         </div>
         <div className="w-[1px] h-6 bg-[#232326]"></div>
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-bold text-gray-500 uppercase">USD/CNY 离岸汇率</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold font-mono">7.2452</span>
-            <span className="text-xs font-bold text-red-500">-0.04%</span>
+            <span className="text-lg font-bold font-mono">{usdCny ? usdCny.last_price.toFixed(4) : '---'}</span>
+            <span className={`text-xs font-bold ${usdCny?.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {usdCny ? (usdCny.change_percent >= 0 ? '+' : '') + usdCny.change_percent.toFixed(2) + '%' : '---'}
+            </span>
           </div>
         </div>
         <div className="w-[1px] h-6 bg-[#232326]"></div>
@@ -159,7 +201,9 @@ const App: React.FC = () => {
             <div className="flex justify-between items-end mb-4">
               <div>
                 <span className="text-[10px] text-gray-500 block mb-1">10年期美债收益率 (名义/实际)</span>
-                <span className="text-2xl font-black font-mono">4.21% / 1.95%</span>
+                <span className="text-2xl font-black font-mono">
+                  {tnx ? tnx.last_price.toFixed(2) + '%' : '--%'} / {realYield ? realYield.value.toFixed(2) + '%' : '--%'}
+                </span>
               </div>
               <div className="flex gap-4 text-[10px]">
                 <div className="flex items-center gap-1"><div className="w-2 h-0.5 bg-blue-500"></div> 名义</div>
@@ -171,12 +215,12 @@ const App: React.FC = () => {
                 <AreaChart data={yieldData}>
                   <defs>
                     <linearGradient id="colorNominal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="colorReal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.1}/>
-                      <stop offset="95%" stopColor="#fbbf24" stopOpacity={0}/>
+                      <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="#fbbf24" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#1f1f22" vertical={false} />
@@ -229,7 +273,7 @@ const App: React.FC = () => {
               <div className="text-gray-400 text-xs mt-1">Managed Money Net Long: +182,400 Lots (<span className="text-green-500">▲ 4.2%</span>)</div>
             </div>
           </div>
-          
+
           <table className="w-full text-[11px] mb-4">
             <thead>
               <tr className="text-gray-500 uppercase font-bold border-b border-[#232326]">
@@ -275,7 +319,7 @@ const App: React.FC = () => {
                 <span className="text-lg font-bold font-mono text-green-400">HEALTHY 1.25</span>
               </div>
               <div className="flex gap-0.5 items-end">
-                {[2, 3, 5, 4, 6].map((h, i) => <div key={i} className="w-1 bg-green-500/80 rounded-t-sm" style={{ height: h*3 }}></div>)}
+                {[2, 3, 5, 4, 6].map((h, i) => <div key={i} className="w-1 bg-green-500/80 rounded-t-sm" style={{ height: h * 3 }}></div>)}
               </div>
             </div>
           </div>
@@ -284,22 +328,17 @@ const App: React.FC = () => {
         {/* Q3: Technical Edge */}
         <Card title="象限 3: 技术面博弈 (Technical Edge)">
           <div className="flex gap-2 mb-4">
-             <button className="px-3 py-1 bg-amber-500 text-black font-black text-[10px] rounded-sm">4H</button>
-             <button className="px-3 py-1 bg-[#232326] text-gray-400 font-bold text-[10px] rounded-sm">1D</button>
-             <button className="px-3 py-1 bg-[#232326] text-gray-400 font-bold text-[10px] rounded-sm">1W</button>
+            <button className="px-3 py-1 bg-amber-500 text-black font-black text-[10px] rounded-sm">4H</button>
+            <button className="px-3 py-1 bg-[#232326] text-gray-400 font-bold text-[10px] rounded-sm">1D</button>
+            <button className="px-3 py-1 bg-[#232326] text-gray-400 font-bold text-[10px] rounded-sm">1W</button>
           </div>
           <div className="h-48 w-full mb-6 relative">
-            <div className="absolute top-0 left-0 z-10 flex gap-4 text-[9px] font-mono">
-              <span className="text-blue-400">MA(200): 2150.40</span>
-              <span className="text-amber-400">MA(20): 2310.25</span>
-              <span className="text-green-400">EMA(50): 2285.12</span>
-            </div>
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={technicalBars}>
+              <BarChart data={dynamicTechnicalBars}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#1f1f22" vertical={false} />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#666' }} />
                 <Bar dataKey="value" radius={[2, 2, 0, 0]}>
-                  {technicalBars.map((entry, index) => (
+                  {dynamicTechnicalBars.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color} fillOpacity={0.8} />
                   ))}
                 </Bar>
@@ -310,16 +349,16 @@ const App: React.FC = () => {
           <div className="grid grid-cols-2 gap-8">
             <div className="space-y-2">
               <span className="text-[9px] text-gray-500 font-bold uppercase block mb-1">经典枢轴位 (Pivot Points)</span>
-              {[
+              {(pivotList.length > 0 ? pivotList : [
                 { label: 'R3 (极强阻力)', val: '2382.4', color: 'text-gray-300' },
                 { label: 'R2 (强阻力)', val: '2368.1', color: 'text-gray-300' },
                 { label: 'R1 (弱阻力)', val: '2354.8', color: 'text-gray-300' },
                 { label: 'PIVOT (多空平衡)', val: '2332.1', color: 'text-amber-500' },
                 { label: 'S1 (弱支撑)', val: '2315.5', color: 'text-gray-300' },
-              ].map((p, i) => (
+              ]).map((p, i) => (
                 <div key={i} className="flex justify-between text-[11px] font-mono border-b border-[#232326]/30 pb-1">
-                   <span className="text-gray-500">{p.label}</span>
-                   <span className={`font-bold ${p.color}`}>{p.val}</span>
+                  <span className="text-gray-500">{p.label}</span>
+                  <span className={`font-bold ${p.color}`}>{p.val}</span>
                 </div>
               ))}
             </div>
@@ -363,18 +402,18 @@ const App: React.FC = () => {
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2 mb-4">
-               <div className="bg-black/40 p-3 rounded text-center border border-[#232326]">
-                 <span className="text-[9px] text-gray-500 uppercase block mb-1">入场点位 (Entry)</span>
-                 <span className="text-xl font-bold font-mono text-amber-500 underline decoration-amber-500/30">2338.50</span>
-               </div>
-               <div className="bg-black/40 p-3 rounded text-center border border-[#232326]">
-                 <span className="text-[9px] text-gray-500 uppercase block mb-1">目标止盈 (TP)</span>
-                 <span className="text-xl font-bold font-mono text-green-500 underline decoration-green-500/30">2375.00</span>
-               </div>
-               <div className="bg-black/40 p-3 rounded text-center border border-red-500/20">
-                 <span className="text-[9px] text-gray-500 uppercase block mb-1">严格止损 (SL)</span>
-                 <span className="text-xl font-bold font-mono text-red-500 underline decoration-red-500/30">2322.00</span>
-               </div>
+              <div className="bg-black/40 p-3 rounded text-center border border-[#232326]">
+                <span className="text-[9px] text-gray-500 uppercase block mb-1">入场点位 (Entry)</span>
+                <span className="text-xl font-bold font-mono text-amber-500 underline decoration-amber-500/30">2338.50</span>
+              </div>
+              <div className="bg-black/40 p-3 rounded text-center border border-[#232326]">
+                <span className="text-[9px] text-gray-500 uppercase block mb-1">目标止盈 (TP)</span>
+                <span className="text-xl font-bold font-mono text-green-500 underline decoration-green-500/30">2375.00</span>
+              </div>
+              <div className="bg-black/40 p-3 rounded text-center border border-red-500/20">
+                <span className="text-[9px] text-gray-500 uppercase block mb-1">严格止损 (SL)</span>
+                <span className="text-xl font-bold font-mono text-red-500 underline decoration-red-500/30">2322.00</span>
+              </div>
             </div>
             <p className="text-[11px] text-gray-400 italic bg-white/5 p-3 rounded border-l-2 border-amber-500">
               逻辑：价格目前处于MA20上方强势整理，10年期美债实际收益率出现回落迹象。建议在2338.50支撑位附近建立多头头寸，博弈晚间CPI数据落地后的空头回补行情。
@@ -382,58 +421,58 @@ const App: React.FC = () => {
           </div>
 
           <div className="bg-black/20 border border-[#232326] rounded-sm flex flex-col h-[400px]">
-             <div className="p-3 border-b border-[#232326] flex justify-between items-center">
-               <div className="flex items-center gap-2">
-                 <MessageSquare className="w-3 h-3 text-amber-500" />
-                 <span className="text-[10px] font-bold uppercase tracking-wider">实时 AI 深度交互分析</span>
-               </div>
-               <span className="text-[9px] text-gray-500">DIRECT TERMINAL ACCESS</span>
-             </div>
-             
-             <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
-               {messages.map((m, i) => (
-                 <div key={i} className="flex flex-col gap-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
-                   <div className="flex items-center gap-2">
-                     <span className={`text-[10px] font-black uppercase ${m.role === 'ai' ? 'text-amber-500' : 'text-blue-500'}`}>
-                       {m.role === 'ai' ? 'AI_CORE:' : 'USER:'}
-                     </span>
-                     <span className="text-[8px] text-gray-600 font-mono">{m.timestamp}</span>
-                   </div>
-                   <div className={`text-xs leading-relaxed ${m.role === 'ai' ? 'text-gray-300' : 'text-gray-400 italic'}`}>
-                     {m.content.split('\n').map((line, li) => (
-                       <p key={li} className="mb-1">{line}</p>
-                     ))}
-                   </div>
-                 </div>
-               ))}
-               {isLoading && (
-                 <div className="flex items-center gap-2 text-amber-500/50 animate-pulse">
-                    <span className="text-[10px] font-black">AI_CORE IS THINKING...</span>
-                 </div>
-               )}
-             </div>
+            <div className="p-3 border-b border-[#232326] flex justify-between items-center">
+              <div className="flex items-center gap-2">
+                <MessageSquare className="w-3 h-3 text-amber-500" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">实时 AI 深度交互分析</span>
+              </div>
+              <span className="text-[9px] text-gray-500">DIRECT TERMINAL ACCESS</span>
+            </div>
 
-             <div className="p-3 border-t border-[#232326] bg-[#121214]">
-               <div className="relative">
-                 <input 
-                   type="text" 
-                   value={chatInput}
-                   onChange={(e) => setChatInput(e.target.value)}
-                   onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
-                   placeholder="输入您的查询指令 (例如: '分析持仓背离' or '计算今日风险溢价')..."
-                   className="w-full bg-black border border-[#232326] rounded-sm py-2 px-4 text-xs focus:outline-none focus:border-amber-500/50 transition-colors pr-12"
-                 />
-                 <button 
-                   onClick={handleSendMessage}
-                   disabled={isLoading}
-                   className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-amber-500 hover:text-amber-400 disabled:opacity-50"
-                 >
-                   <ChevronRight className="w-4 h-4" />
-                 </button>
-               </div>
-             </div>
+            <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
+              {messages.map((m, i) => (
+                <div key={i} className="flex flex-col gap-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                  <div className="flex items-center gap-2">
+                    <span className={`text-[10px] font-black uppercase ${m.role === 'ai' ? 'text-amber-500' : 'text-blue-500'}`}>
+                      {m.role === 'ai' ? 'AI_CORE:' : 'USER:'}
+                    </span>
+                    <span className="text-[8px] text-gray-600 font-mono">{m.timestamp}</span>
+                  </div>
+                  <div className={`text-xs leading-relaxed ${m.role === 'ai' ? 'text-gray-300' : 'text-gray-400 italic'}`}>
+                    {m.content.split('\n').map((line, li) => (
+                      <p key={li} className="mb-1">{line}</p>
+                    ))}
+                  </div>
+                </div>
+              ))}
+              {isLoading && (
+                <div className="flex items-center gap-2 text-amber-500/50 animate-pulse">
+                  <span className="text-[10px] font-black">AI_CORE IS THINKING...</span>
+                </div>
+              )}
+            </div>
+
+            <div className="p-3 border-t border-[#232326] bg-[#121214]">
+              <div className="relative">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSendMessage()}
+                  placeholder="输入您的查询指令 (例如: '分析持仓背离' or '计算今日风险溢价')..."
+                  className="w-full bg-black border border-[#232326] rounded-sm py-2 px-4 text-xs focus:outline-none focus:border-amber-500/50 transition-colors pr-12"
+                />
+                <button
+                  onClick={handleSendMessage}
+                  disabled={isLoading}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-amber-500 hover:text-amber-400 disabled:opacity-50"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
           </div>
-          
+
           <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
             <button className="col-span-full bg-amber-500 hover:bg-amber-400 text-black py-3 rounded-sm font-black text-xs uppercase flex items-center justify-center gap-2 transition-transform active:scale-[0.98]">
               <FileText className="w-4 h-4" />
@@ -462,17 +501,16 @@ const App: React.FC = () => {
             <div className="space-y-4 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
               {intelStream.map((item) => (
                 <div key={item.id} className="grid grid-cols-[100px_80px_1fr] items-start gap-4 text-[11px] group">
-                   <span className="text-gray-600 font-mono font-bold group-hover:text-gray-400 transition-colors">{item.time}</span>
-                   <span className={`px-2 py-0.5 rounded-sm font-black text-[9px] text-center w-fit ${
-                     item.type === 'FLASH' ? 'bg-amber-500 text-black' :
-                     item.type === 'DATA' ? 'bg-green-500 text-black' :
-                     item.type === 'ALERT' ? 'bg-red-500 text-white' : 'bg-[#232326] text-gray-400'
-                   }`}>
-                     [{item.highlight}]
-                   </span>
-                   <p className="text-gray-300 group-hover:text-white transition-colors">
-                     {item.content}
-                   </p>
+                  <span className="text-gray-600 font-mono font-bold group-hover:text-gray-400 transition-colors">{item.time}</span>
+                  <span className={`px-2 py-0.5 rounded-sm font-black text-[9px] text-center w-fit ${item.type === 'FLASH' ? 'bg-amber-500 text-black' :
+                    item.type === 'DATA' ? 'bg-green-500 text-black' :
+                      item.type === 'ALERT' ? 'bg-red-500 text-white' : 'bg-[#232326] text-gray-400'
+                    }`}>
+                    [{item.highlight}]
+                  </span>
+                  <p className="text-gray-300 group-hover:text-white transition-colors">
+                    {item.content}
+                  </p>
                 </div>
               ))}
             </div>
@@ -496,17 +534,17 @@ const App: React.FC = () => {
             <span className="text-gray-300">14ms</span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-4 border-r border-[#232326] pr-4">
-             <div className="flex items-center gap-1"><Clock className="w-3 h-3" /> SHA 14:24</div>
-             <div>NY 01:24</div>
-             <div>LDN 06:24</div>
-             <div>TYO 15:24</div>
+            <div className="flex items-center gap-1"><Clock className="w-3 h-3" /> SHA 14:24</div>
+            <div>NY 01:24</div>
+            <div>LDN 06:24</div>
+            <div>TYO 15:24</div>
           </div>
           <div className="flex items-center gap-2 text-gray-400">
-             <span>Data Sync Active</span>
-             <Activity className="w-3 h-3 text-green-500" />
+            <span>Data Sync Active</span>
+            <Activity className="w-3 h-3 text-green-500" />
           </div>
         </div>
       </footer>

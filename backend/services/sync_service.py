@@ -53,7 +53,7 @@ class GoldDataSyncer:
 
     def sync_all(self):
         # 1. High Frequency Tickeres
-        tickers = ["GC=F", "^TNX", "DX-Y.NYB", "ZQ=F"]
+        tickers = ["GC=F", "^TNX", "DX-Y.NYB", "ZQ=F", "CNY=X"]
         for symbol in tickers:
             data = self.fetch_market_data(symbol)
             if data:
@@ -72,6 +72,28 @@ class GoldDataSyncer:
                  "is_stale": breakeven is None,
                  "source": "FRED + Yahoo"
              }, on_conflict="indicator_name").execute()
+
+        # 2.1 Domestic Premium (Simplified: Calculated vs Spot)
+        # We need Gold Spot (GC=F) and USDCNY (CNY=X)
+        gold_data = self.fetch_market_data("GC=F")
+        cny_data = self.fetch_market_data("CNY=X")
+        
+        if gold_data and cny_data:
+            gold_price = gold_data['last_price']
+            usd_cny = cny_data['last_price']
+            # Theoretical CNY Price/g = (Gold($/oz) / 31.1035) * USDCNY
+            theoretical_price = (gold_price / 31.1035) * usd_cny
+            
+            # Assume a "Reference" Domestic Price (e.g. +$2 premium typically, or fetch real one)
+            # Since we don't have a reliable free API for Shanghai Gold T+D right now, 
+            # we will store the 'Implied Domestic Price' and a 'Calculated Premium' (mocked slightly or using a proxy)
+            # For now, let's just save the Exchange Rate to Macro
+            self.supabase.table("macro_indicators").upsert({
+                "indicator_name": "USD_CNY",
+                "value": usd_cny,
+                "source": "Yahoo"
+             }, on_conflict="indicator_name").execute()
+
 
         # 3. Pivot Points
         pivots = calc_pivot_points("GC=F")
