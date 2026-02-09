@@ -196,16 +196,27 @@ const App: React.FC = () => {
   const handleSendMessage = async () => {
     if (!chatInput.trim()) return;
 
-    const userMsg: ChatMessage = { role: 'user', content: chatInput, timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userMsg: ChatMessage = { role: 'user', content: chatInput, timestamp };
     setMessages(prev => [...prev, userMsg]);
     setChatInput('');
     setIsLoading(true);
 
-    const aiResponse = await getMarketAnalysis(chatInput);
-    const aiMsg: ChatMessage = { role: 'ai', content: aiResponse || "Analysis unavailable.", timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
-    setMessages(prev => [...prev, aiMsg]);
-    setIsLoading(false);
+    try {
+      const aiResponse = await getMarketAnalysis(chatInput, dashboard);
+      const aiMsg: ChatMessage = {
+        role: 'ai',
+        content: aiResponse || "Neural core busy. Please retry.",
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      setMessages(prev => [...prev, aiMsg]);
+    } catch (error) {
+      console.error("Chat Error:", error);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
 
   const dynamicTechnicalBars = currentPivots ? [
     { name: 'S2', value: currentPivots.S2, color: '#ef4444' },

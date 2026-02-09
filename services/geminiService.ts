@@ -1,25 +1,68 @@
 
 import { GoogleGenAI } from "@google/genai";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Ensure we have a valid API key from window or environment
+const getApiKey = () => {
+  return (window as any).VITE_GEMINI_API_KEY || (window as any).process?.env?.API_KEY || "";
+};
 
-export const getMarketAnalysis = async (userPrompt: string) => {
+const genAI = new GoogleGenAI(getApiKey());
+
+export const getMarketAnalysis = async (userPrompt: string, dashboardContext: any) => {
+  if (!dashboardContext) return "AI_CORE: Waiting for system state synchronization...";
+
+  const now = new Date();
+  const dateStr = now.toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' });
+
+  // Prepare context data
+  const tickers = dashboardContext.tickers || [];
+  const macro = dashboardContext.macro || [];
+  const strategy = dashboardContext.today_strategy || {};
+
+  const contextSummary = `
+Current Time: ${dateStr} (Shanghai Time)
+Market Data:
+${tickers.map((t: any) => `- ${t.ticker}: ${t.last_price} (${t.change_percent.toFixed(2)}%)`).join('\n')}
+
+Macro Indicators:
+${macro.map((m: any) => `- ${m.indicator_name}: ${m.value} ${m.unit || ''}`).join('\n')}
+
+Strategy & FedWatch:
+- Pivot: ${strategy.pivot_points?.p || 'N/A'}
+- FedWatch: ${JSON.stringify(strategy.fedwatch || {})}
+  `;
+
   try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: userPrompt,
-      config: {
-        systemInstruction: `You are AI_CORE, the intelligence engine for GOLDTRACER PRO. 
-        You specialize in gold markets (XAU/USD), macroeconomics, and institutional flow analysis.
-        Respond in a professional, concise, and structured manner. Use markdown for lists or bold text.
-        Always consider the context of Gold as a safe-haven asset.`,
+    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" }); // Using a more capable model if available
+
+    const result = await model.generateContent({
+      contents: [{ role: "user", parts: [{ text: userPrompt }] }],
+      generationConfig: {
         temperature: 0.7,
-        thinkingConfig: { thinkingBudget: 0 }
+        topP: 0.8,
+        topK: 40,
+        maxOutputTokens: 1024,
       },
+      systemInstruction: `You are AI_CORE (Agent v5.1), a specialized AI Investment Agent for Professional Gold Traders. 
+      
+      CRITICAL OPERATIONAL STEPS:
+      1. DATA VERIFICATION: Before responding, silently verify if the provided market data has internal conflicts (e.g. DXY and Gold both pumping 5% is an anomaly to flag). 
+      2. CONTEXTUAL AWARENESS: Use the provided context (Time: ${dateStr}, Market State: ${contextSummary}).
+      3. PERSONA: You are elite, cynical but objective, focused on Institutional Flows and Macro Policy.
+      4. CHINESE MARKET FOCUS: Always provide specific implications for Chinese investors, specifically domestic Gold ETFs (518880, 159934) and Premium/Discount effects on SHFE Gold vs COMEX.
+      5. NO GENERIC ADVICE: Do not give boilerplate financial advice. Focus on the raw numbers and the 'Why'.
+      
+      RESPONSE FORMAT:
+      - Use professional trading terminology.
+      - Keep it under 250 words unless asked for a deep report.
+      - If data verification fails, start your response with '[DATA_CAUTION]'.`
     });
-    return response.text;
+
+    const response = await result.response;
+    return response.text();
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "Error communicating with AI_CORE. Please check your connectivity.";
+    return "AI_CORE ERROR: Connection to neural core interrupted. Check API_KEY or network.";
   }
 };
+
