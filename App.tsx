@@ -43,6 +43,16 @@ const intelStream: IntelMessage[] = [
   { id: '4', type: 'ALERT', time: '13:45:00', content: 'COMEX 黄金期货市场出现 $4亿 卖盘压制，价格在 2345 遇阻。', highlight: '异动' },
 ];
 
+// --- Mock Data ---
+const yieldData = [
+  { time: '09:00', nominal: 4.15, real: 1.85 },
+  { time: '10:00', nominal: 4.18, real: 1.90 },
+  { time: '11:00', nominal: 4.25, real: 1.98 },
+  { time: '12:00', nominal: 4.21, real: 1.95 },
+  { time: '13:00', nominal: 4.19, real: 1.92 },
+  { time: '14:00', nominal: 4.21, real: 1.95 },
+];
+
 const App: React.FC = () => {
   const [chatInput, setChatInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([
@@ -73,8 +83,8 @@ const App: React.FC = () => {
     loadHistory();
   }, [historyRange]);
 
-  const getTicker = (symbol: string) => dashboard?.tickers?.find((t: any) => t.ticker === symbol);
-  const getMacro = (name: string) => dashboard?.macro?.find((m: any) => m.indicator_name === name);
+  const getTicker = (symbol: string) => (dashboard?.tickers || []).find((t: any) => t.ticker === symbol);
+  const getMacro = (name: string) => (dashboard?.macro || []).find((m: any) => m.indicator_name === name);
 
   const gold = getTicker('GC=F');
   const usdCny = getTicker('CNY=X');
@@ -149,9 +159,11 @@ const App: React.FC = () => {
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-bold text-gray-500 uppercase">XAU/USD 现货黄金</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold font-mono">{gold ? gold.last_price.toFixed(2) : '---'}</span>
-            <span className={`text-xs font-bold ${gold?.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {gold ? (gold.change_percent >= 0 ? '+' : '') + gold.change_percent.toFixed(2) + '%' : '---'}
+            <span className="text-lg font-bold font-mono">
+              {gold?.last_price != null ? gold.last_price.toFixed(2) : '---'}
+            </span>
+            <span className={`text-xs font-bold ${gold?.change_percent != null && gold.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {gold?.change_percent != null ? (gold.change_percent >= 0 ? '+' : '') + gold.change_percent.toFixed(2) + '%' : '---'}
             </span>
           </div>
         </div>
@@ -159,9 +171,11 @@ const App: React.FC = () => {
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-bold text-gray-500 uppercase">USD/CNY 离岸汇率</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold font-mono">{usdCny ? usdCny.last_price.toFixed(4) : '---'}</span>
-            <span className={`text-xs font-bold ${usdCny?.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {usdCny ? (usdCny.change_percent >= 0 ? '+' : '') + usdCny.change_percent.toFixed(2) + '%' : '---'}
+            <span className="text-lg font-bold font-mono">
+              {usdCny?.last_price != null ? usdCny.last_price.toFixed(4) : '---'}
+            </span>
+            <span className={`text-xs font-bold ${usdCny?.change_percent != null && usdCny.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {usdCny?.change_percent != null ? (usdCny.change_percent >= 0 ? '+' : '') + usdCny.change_percent.toFixed(2) + '%' : '---'}
             </span>
           </div>
         </div>
@@ -192,7 +206,7 @@ const App: React.FC = () => {
               <div>
                 <span className="text-[10px] text-gray-500 block mb-1">10年期美债收益率 (名义/实际/通胀)</span>
                 <span className="text-2xl font-black font-mono">
-                  {tnx ? tnx.last_price.toFixed(2) + '%' : '--%'} / {realYield ? realYield.value.toFixed(2) + '%' : '--%'}
+                  {tnx?.last_price != null ? tnx.last_price.toFixed(2) + '%' : '--%'} / {realYield?.value != null ? Number(realYield.value).toFixed(2) + '%' : '--%'}
                 </span>
               </div>
               <div className="flex flex-col items-end gap-2">
@@ -239,7 +253,7 @@ const App: React.FC = () => {
                     hide={historyRange === '1d'}
                     fontSize={9}
                     tick={{ fill: '#4b5563' }}
-                    tickFormatter={(val) => val.split('-').slice(1).join('/')}
+                    tickFormatter={(val) => val && typeof val === 'string' ? val.split('-').slice(1).join('/') : val}
                   />
                   <YAxis hide domain={['auto', 'auto']} />
                   <Tooltip
