@@ -7,17 +7,27 @@ let genAIInstance: any = null;
 const getAIInstance = () => {
   if (genAIInstance) return genAIInstance;
 
-  const apiKey = (window as any).VITE_GEMINI_API_KEY ||
-    (window as any).VITE_API_KEY ||
+  // Try common naming conventions for Vite/Vercel
+  const apiKey = import.meta.env.VITE_GEMINI_API_KEY ||
+    import.meta.env.VITE_API_KEY ||
+    import.meta.env.GEMINI_API_KEY || // Match user's Vercel screenshot
+    (window as any).VITE_GEMINI_API_KEY ||
     "";
 
   if (!apiKey) {
-    console.warn("AI_CORE: No API Key found in environment.");
+    console.error("AI_CORE: Critical Error - API Key is missing. AI features will be disabled.");
+    return null;
   }
 
-  genAIInstance = new GoogleGenAI(apiKey);
-  return genAIInstance;
+  try {
+    genAIInstance = new GoogleGenAI(apiKey);
+    return genAIInstance;
+  } catch (e) {
+    console.error("AI_CORE: Initialization failed", e);
+    return null;
+  }
 };
+
 
 export const getMarketAnalysis = async (userPrompt: string, dashboardContext: any) => {
   if (!dashboardContext) return "AI_CORE: Waiting for system state synchronization...";
@@ -45,6 +55,7 @@ Strategy & FedWatch:
 
   try {
     const ai = getAIInstance();
+    if (!ai) return "AI_CORE: Neural link disabled. Please check Vercel environment variables.";
     // Use the model name from the previous working version if gemini-2.0 fails 
     // or stick to a safer version
     const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
