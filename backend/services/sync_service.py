@@ -219,12 +219,13 @@ class GoldDataSyncer:
                  change_percent = float(gold_data.data[0]['change_percent'] or 0.0)
 
             # 1. GLD ETF Holding (Dynamic Mockup)
-            gld_holdings = 800 + (gold_price - 2000) * 0.15 
+            gld_holdings = 800 + (gold_price - 5000) * 0.15 
             gld_change = change_percent * 2.5 
 
             # 2. CFTC Managed Money (Dynamic Mockup)
-            managed_money = 150000 + (gold_price - 2000) * 200
+            managed_money = 150000 + (gold_price - 5000) * 200
             managed_money_change = change_percent * 1500
+
 
             # 3. Central Bank Reserves (Slow moving, slight noise added)
             pboc_base = 2264.0
