@@ -126,3 +126,56 @@ async def trigger_sync(full: bool = False):
         # If it's a timeout or rate limit, we might want to return 200 or 202 to avoid Vercel retrying aggressively
         # but let's stick to 500 for critical failures.
         raise HTTPException(status_code=status_code, detail=f"Sync failed: {str(e)}")
+
+from pydantic import BaseModel
+class FedWatchUpdate(BaseModel):
+    prob_pause: float
+    prob_cut_25: float
+    meeting_date: str = "2026-03-18"
+
+@app.post("/api/admin/fedwatch/update")
+async def update_fedwatch_manually(data: FedWatchUpdate):
+    """
+    Manually update FedWatch probabilities in the database.
+    """
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Supabase connection not configured")
+    
+    from datetime import datetime
+    today = datetime.now().strftime('%Y-%m-%d')
+    last_updated = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Calculate implied rate
+    current_rate = 5.375
+    implied_rate = current_rate - (0.25 * (data.prob_cut_25 / 100))
+    
+    fed_payload = {
+        "meeting_date": data.meeting_date,
+        "meeting_name": f"{data.meeting_date[5:7].lstrip('0')}月{data.meeting_date[8:10].lstrip('0')}日议息会议",
+        "meeting_time": "美东 14:00 / 北京次日 03:00",
+        "meeting_datetime_utc": f"{data.meeting_date}T19:00:00Z",
+        "prob_pause": round(data.prob_pause, 1),
+        "prob_cut_25": round(data.prob_cut_25, 1),
+        "implied_rate": round(implied_rate, 3),
+        "current_rate": current_rate,
+        "data_source": "CME FedWatch (Manual Update)",
+        "last_verified": last_updated
+    }
+    
+    try:
+        # Check if record exists for today
+        res = supabase.table("daily_strategy_log").select("*").eq("log_date", today).execute()
+        
+        if res.data:
+            # Update existing record
+            supabase.table("daily_strategy_log").update({"fedwatch": fed_payload}).eq("log_date", today).execute()
+        else:
+            # Insert new record for today
+            supabase.table("daily_strategy_log").insert({
+                "log_date": today,
+                "fedwatch": fed_payload
+            }).execute()
+            
+        return {"status": "success", "fedwatch": fed_payload}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database update failed: {str(e)}")

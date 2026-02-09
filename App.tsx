@@ -138,6 +138,40 @@ const App: React.FC = () => {
     }
   };
 
+  const updateFedWatchManually = async () => {
+    const pauseStr = prompt("请输入维持利率概率 (%)", "84.2");
+    if (pauseStr === null) return;
+    const cutStr = prompt("请输入降息 25BP 概率 (%)", "15.8");
+    if (cutStr === null) return;
+
+    const prob_pause = parseFloat(pauseStr);
+    const prob_cut_25 = parseFloat(cutStr);
+
+    if (isNaN(prob_pause) || isNaN(prob_cut_25)) {
+      alert("请输入有效数字");
+      return;
+    }
+
+    try {
+      const apiUrl = typeof window !== 'undefined' && (window as any).VITE_API_URL ? (window as any).VITE_API_URL : '';
+      const response = await fetch(`${apiUrl}/api/admin/fedwatch/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prob_pause, prob_cut_25, meeting_date: "2026-03-18" })
+      });
+
+      if (response.ok) {
+        alert("FedWatch 数据已手动更新并保存至数据库");
+        const newData = await fetchDashboardState();
+        if (newData) setDashboard(newData);
+      } else {
+        alert("更新失败");
+      }
+    } catch (error) {
+      alert("错误: " + error.message);
+    }
+  };
+
   const getTicker = (symbol: string) => (dashboard?.tickers || []).find((t: any) => t.ticker === symbol);
   const getMacro = (name: string) => (dashboard?.macro || []).find((m: any) => m.indicator_name === name);
 
@@ -405,14 +439,33 @@ const App: React.FC = () => {
                 const pCut = fed?.prob_cut_25 ?? 17.6;
                 return (
                   <>
-                    <div className="mb-2">
-                      <span className="text-[10px] text-gray-500 uppercase font-bold block">{fed?.meeting_name || 'FedWatch 会议概率'}</span>
-                      {fed?.meeting_time && (
-                        <span className="text-[8px] text-amber-500/80 font-mono block mt-0.5">{fed.meeting_time}</span>
-                      )}
-                      {countdown && (
-                        <span className="text-[9px] text-red-500 font-black block mt-1">⏱ 倒计时: {countdown}</span>
-                      )}
+                    <div className="mb-2 flex justify-between items-start">
+                      <div>
+                        <span className="text-[10px] text-gray-500 uppercase font-bold block">{fed?.meeting_name || 'FedWatch 会议概率'}</span>
+                        {fed?.meeting_time && (
+                          <span className="text-[8px] text-amber-500/80 font-mono block mt-0.5">{fed.meeting_time}</span>
+                        )}
+                        {countdown && (
+                          <span className="text-[9px] text-red-500 font-black block mt-1">⏱ 倒计时: {countdown}</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <a
+                          href="https://www.cmegroup.com/markets/interest-rates/cme-fedwatch-tool.html"
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[9px] text-blue-400 hover:underline"
+                        >
+                          CME数据↗
+                        </a>
+                        <button
+                          onClick={updateFedWatchManually}
+                          className="text-[9px] text-gray-500 hover:text-white"
+                          title="手动修正数据"
+                        >
+                          修正
+                        </button>
+                      </div>
                     </div>
                     <div className="space-y-3">
                       <div>
@@ -424,7 +477,14 @@ const App: React.FC = () => {
                         <div className="h-1 bg-white/5 rounded-full overflow-hidden"><div className="h-full bg-blue-500 transition-all duration-1000" style={{ width: `${pCut}%` }}></div></div>
                       </div>
                     </div>
+                    {fed?.last_verified && (
+                      <div className="mt-3 pt-2 border-t border-white/5 flex justify-between items-center opacity-60">
+                        <span className="text-[8px] text-gray-400">数据最后核验: {fed.last_verified}</span>
+                        <span className="text-[8px] text-amber-500/50 font-mono">LIVE / MANUAL</span>
+                      </div>
+                    )}
                   </>
+
                 );
               })()}
             </div>
