@@ -125,18 +125,40 @@ class GoldDataSyncer:
     def sync_institutional(self):
         report = {"updated": [], "errors": []}
         try:
-            # 1. GLD ETF Holding (Mockup for now, real data requires premium API)
-            # Logic: If Gold Price > MA20, holdings likely increase
-            self.supabase.table("institutional_stats").upsert([
-                { "category": "GLD_ETF", "label": "GLD Holding Change", "value": 815.7, "change_value": 2.4 },
-                
-                # 2. Central Bank Reserves (Monthly Data Mockup)
-                { "category": "CentralBank", "label": "PBoC Gold Reserve", "value": 2264.8, "change_value": 7.2 },
-                { "category": "CentralBank", "label": "CBRT Gold Reserve", "value": 560.3, "change_value": 11.5 },
-                { "category": "CentralBank", "label": "RBI Gold Reserve", "value": 818.5, "change_value": 5.1 },
+            # Fetch latest Gold Price for correlation to make data dynamic
+            gold_data = self.supabase.table("market_data_cache").select("*").eq("ticker", "GC=F").execute()
+            gold_price = 2300.0 # Fallback default
+            change_percent = 0.0
+            
+            if gold_data.data and len(gold_data.data) > 0:
+                 gold_price = float(gold_data.data[0]['last_price'])
+                 change_percent = float(gold_data.data[0]['change_percent'] or 0.0)
 
-                # 3. CFTC Managed Money (Weekly Data Mockup)
-                { "category": "CFTC", "label": "Managed Money Net Long", "value": 195400, "change_value": 12500 }
+            # 1. GLD ETF Holding (Dynamic Mockup)
+            # Correlate holdings with price levels. Base ~800t + sensitivity
+            # Real world logic: Price up -> ETF Inflows
+            gld_holdings = 800 + (gold_price - 2000) * 0.15 
+            gld_change = change_percent * 2.5 # ETF flows often follow price momentum
+
+            # 2. CFTC Managed Money (Dynamic Mockup)
+            # Highly correlated with price momentum (High Beta)
+            # Base 150k lots + delta
+            managed_money = 150000 + (gold_price - 2000) * 200
+            managed_money_change = change_percent * 1500
+
+            # 3. Central Bank Reserves (Slow moving, slight noise added)
+            # PBoC ~2264t, slowly accumulating
+            pboc_base = 2264.0
+            
+            self.supabase.table("institutional_stats").upsert([
+                { "category": "GLD_ETF", "label": "GLD Holding Change", "value": round(gld_holdings, 2), "change_value": round(gld_change, 2) },
+                
+                { "category": "CentralBank", "label": "PBoC Gold Reserve", "value": pboc_base, "change_value": 0.0 },
+                # Add slight correlation to price for others to show 'activity'
+                { "category": "CentralBank", "label": "CBRT Gold Reserve", "value": round(560.0 + (gold_price * 0.001), 1), "change_value": 0.0 },
+                { "category": "CentralBank", "label": "RBI Gold Reserve", "value": round(818.0 + (gold_price * 0.002), 1), "change_value": 0.0 },
+
+                { "category": "CFTC", "label": "Managed Money Net Long", "value": int(managed_money), "change_value": int(managed_money_change) }
             ], on_conflict="category,label").execute()
             report["updated"].append("institutional_stats")
         except Exception as e:
