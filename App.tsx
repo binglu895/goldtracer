@@ -385,10 +385,13 @@ const App: React.FC = () => {
             <tbody className="divide-y divide-[#232326]/30">
               {[
                 { label: 'USA (美联储)', key: 'USA (Fed) Reserve' },
+                { label: 'CBR (俄罗斯央行)', key: 'CBR (Russia) Reserve' },
                 { label: 'PBoC (中国央行)', key: 'PBoC Gold Reserve' },
                 { label: 'NBP (波兰央行)', key: 'NBP (Poland) Reserve' },
                 { label: 'CBRT (土耳其央行)', key: 'CBRT Gold Reserve' },
-                { label: 'RBI (印度央行)', key: 'RBI Gold Reserve' }
+                { label: 'RBI (印度央行)', key: 'RBI Gold Reserve' },
+                { label: 'CBI (伊朗央行)', key: 'CBI (Iran) Reserve' }
+
               ].map((item, idx) => {
 
                 const data = (dashboard?.institutional || []).find(s => s.label === item.key);
@@ -412,31 +415,58 @@ const App: React.FC = () => {
           </table>
 
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-[#0c0c0e] p-3 border border-[#232326] rounded-sm flex justify-between items-center">
               <div>
-                <span className="text-[9px] text-gray-500 uppercase font-bold block mb-1">实物黄金溢价 (上海-伦敦)</span>
+                <span className="text-[9px] text-gray-500 uppercase font-bold block mb-1">实物溢价 (SH-LDN)</span>
                 <span className="text-lg font-bold font-mono text-green-500">+$3.25/oz</span>
               </div>
-              <span className="text-[9px] bg-white/5 px-2 py-1 rounded text-gray-400 font-bold">PREMIUM STEADY</span>
+              <span className="text-[8px] bg-white/5 px-2 py-1 rounded text-gray-400 font-bold">STEADY</span>
             </div>
+
             <div className="bg-[#0c0c0e] p-3 border border-[#232326] rounded-sm flex justify-between items-center relative overflow-hidden group">
               <div className="absolute inset-0 bg-red-500/5 group-hover:bg-red-500/10 transition-colors"></div>
               <div className="relative z-10 w-full">
                 <div className="flex justify-between items-start mb-1">
-                  <span className="text-[9px] text-gray-500 uppercase font-bold">地缘风险因子 (GPR)</span>
+                  <span className="text-[9px] text-gray-500 uppercase font-bold">地缘风险 (GPR)</span>
                   <ShieldAlert className="w-3 h-3 text-red-500 animate-pulse" />
                 </div>
                 <div className="flex items-end justify-between">
-                  <span className="text-lg font-bold font-mono text-red-500">142.50</span>
-                  <span className="text-[8px] px-1.5 py-0.5 bg-red-500/20 text-red-500 rounded font-black uppercase tracking-tighter">High Tension</span>
+                  {(() => {
+                    const gpr = (dashboard?.macro || []).find(i => i.indicator_name === 'GPR_Index');
+                    const val = gpr?.value ? Number(gpr.value).toFixed(2) : '142.50';
+                    return (
+                      <>
+                        <span className="text-lg font-bold font-mono text-red-500">{val}</span>
+                        <span className="text-[8px] px-1.5 py-0.5 bg-red-500/20 text-red-500 rounded font-black uppercase tracking-tighter">High Tension</span>
+                      </>
+                    );
+                  })()}
                 </div>
-                <div className="mt-2 h-1 bg-white/5 rounded-full overflow-hidden">
-                  <div className="h-full bg-red-500 animate-[pulse_2s_infinite]" style={{ width: '68%' }}></div>
+              </div>
+            </div>
+
+            <div className="bg-[#0c0c0e] p-3 border border-[#232326] rounded-sm flex justify-between items-center group relative overflow-hidden">
+              <div className="relative z-10 w-full">
+                <span className="text-[9px] text-gray-500 uppercase font-bold block mb-1">流动性健康 (LHI)</span>
+                <div className="flex items-end justify-between">
+                  {(() => {
+                    const lhi = (dashboard?.macro || []).find(i => i.indicator_name === 'Liquidity_Health');
+                    const val = lhi?.value ? Number(lhi.value).toFixed(2) : '1.25';
+                    return (
+                      <>
+                        <span className="text-lg font-bold font-mono text-green-400">{val}</span>
+                        <div className="flex gap-0.5 items-end pb-1">
+                          {[2, 3, 5, 4, 6].map((h, i) => <div key={i} className="w-1 bg-green-500/80 rounded-t-sm" style={{ height: h * 2.5 }}></div>)}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
           </div>
+
         </Card>
 
 
