@@ -50,15 +50,18 @@ def calc_pivot_points(ticker: str = "GC=F", interval: str = "1d") -> Optional[Di
     Standard Pivot Point formula using direct API data.
     Intervals: 4h, 1d, 1w
     """
-    y_interval = "1d"
-    range_val = "2d"
+    y_interval = interval
+    range_val = "5d" # Default for 1d and 4h
     
     if interval == "4h":
         y_interval = "4h"
-        range_val = "8h" # Need 2 bars
     elif interval == "1w":
         y_interval = "1wk"
-        range_val = "2wk"
+        range_val = "1mo"
+    elif interval == "1d":
+        y_interval = "1d"
+        range_val = "5d"
+
 
     url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={range_val}&interval={y_interval}"
     headers = {
