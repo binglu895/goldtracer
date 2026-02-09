@@ -235,12 +235,12 @@ const App: React.FC = () => {
                 <AreaChart data={macroHistory}>
                   <defs>
                     <linearGradient id="colorNominal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.1} />
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.05} />
                       <stop offset="95%" stopColor="#3b82f6" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="colorReal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.1} />
-                      <stop offset="95%" stopColor="#fbbf24" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#fbbf24" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#fbbf24" stopOpacity={0.05} />
                     </linearGradient>
                     <linearGradient id="colorInf" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#a855f7" stopOpacity={0.1} />
@@ -260,19 +260,19 @@ const App: React.FC = () => {
                     contentStyle={{ backgroundColor: '#121214', border: '1px solid #232326', fontSize: '10px' }}
                     labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
                   />
-                  <Area type="monotone" dataKey="nominal_yield" stroke="#3b82f6" strokeWidth={2} fillOpacity={1} fill="url(#colorNominal)" name="Nominal" />
-                  <Area type="monotone" dataKey="real_yield" stroke="#fbbf24" strokeWidth={2} fillOpacity={1} fill="url(#colorReal)" name="Real" />
+                  <Area type="monotone" dataKey="nominal_yield" stroke="#3b82f6" strokeWidth={1} strokeOpacity={0.5} fillOpacity={1} fill="url(#colorNominal)" name="Nominal" />
+                  <Area type="monotone" dataKey="real_yield" stroke="#fbbf24" strokeWidth={3} fillOpacity={1} fill="url(#colorReal)" name="Real" />
                   <Area type="monotone" dataKey="breakeven_inflation" stroke="#a855f7" strokeWidth={1} strokeDasharray="3 3" fillOpacity={1} fill="url(#colorInf)" name="Inflation" />
 
-                  {/* Highlight Peak & Bottom for Nominal Yield */}
+                  {/* Highlight Peak & Bottom for REAL YIELD (Gold's Core Driver) */}
                   {macroHistory.length > 3 && (() => {
-                    const validData = macroHistory.filter(d => d.nominal_yield != null);
+                    const validData = macroHistory.filter(d => d.real_yield != null);
                     if (validData.length === 0) return null;
-                    const vals = validData.map(d => d.nominal_yield);
+                    const vals = validData.map(d => d.real_yield);
                     const high = Math.max(...vals);
                     const low = Math.min(...vals);
-                    const highPoint = validData.find(d => d.nominal_yield === high);
-                    const lowPoint = validData.find(d => d.nominal_yield === low);
+                    const highPoint = validData.find(d => d.real_yield === high);
+                    const lowPoint = validData.find(d => d.real_yield === low);
 
                     return (
                       <>
@@ -280,25 +280,28 @@ const App: React.FC = () => {
                           <ReferenceDot
                             x={highPoint.log_date}
                             y={high}
-                            r={3}
-                            fill="#ef4444"
+                            r={4}
+                            fill="#fbbf24"
                             stroke="#fff"
-                            label={{ position: 'top', value: `H: ${high}%`, fill: '#ef4444', fontSize: 10, fontWeight: 'bold' }}
+                            strokeWidth={2}
+                            label={{ position: 'top', value: `Top: ${high.toFixed(2)}%`, fill: '#fbbf24', fontSize: 10, fontWeight: '900' }}
                           />
                         )}
                         {lowPoint && (
                           <ReferenceDot
                             x={lowPoint.log_date}
                             y={low}
-                            r={3}
-                            fill="#22c55e"
+                            r={4}
+                            fill="#fbbf24"
                             stroke="#fff"
-                            label={{ position: 'bottom', value: `L: ${low}%`, fill: '#22c55e', fontSize: 10, fontWeight: 'bold' }}
+                            strokeWidth={2}
+                            label={{ position: 'bottom', value: `Btm: ${low.toFixed(2)}%`, fill: '#fbbf24', fontSize: 10, fontWeight: '900' }}
                           />
                         )}
                       </>
                     );
                   })()}
+
                 </AreaChart>
 
               </ResponsiveContainer>
