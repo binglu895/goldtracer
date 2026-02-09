@@ -244,7 +244,7 @@ const App: React.FC = () => {
                 </div>
               </div>
             </div>
-            <div className="h-48 w-full">
+            <div className={`h-48 w-full ${historyRange === '5d' || historyRange === '1d' ? 'max-w-[400px]' : ''}`}>
               <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={macroHistory}>
                   <defs>
@@ -268,56 +268,61 @@ const App: React.FC = () => {
                     fontSize={9}
                     tick={{ fill: '#4b5563' }}
                     tickFormatter={(val) => val && typeof val === 'string' ? val.split('-').slice(1).join('/') : val}
+                    padding={{ left: 10, right: 10 }}
                   />
-                  <YAxis hide domain={['dataMin', 'dataMax']} allowDecimals={true} />
+                  {/* Separate axes for height amplification */}
+                  <YAxis yAxisId="nom" hide domain={['dataMin', 'dataMax']} />
+                  <YAxis yAxisId="vol" hide domain={['dataMin', 'dataMax']} allowDecimals={true} />
+
                   <Tooltip
                     contentStyle={{ backgroundColor: '#121214', border: '1px solid #232326', fontSize: '10px' }}
                     labelStyle={{ color: '#9ca3af', marginBottom: '4px' }}
                   />
-                  <Area type="monotone" dataKey="nominal_yield" stroke="#3b82f6" strokeWidth={1} strokeOpacity={0.5} fillOpacity={1} fill="url(#colorNominal)" name="Nominal" />
-                  <Area type="monotone" dataKey="real_yield" stroke="#fbbf24" strokeWidth={3} fillOpacity={1} fill="url(#colorReal)" name="Real" />
-                  <Area type="monotone" dataKey="breakeven_inflation" stroke="#a855f7" strokeWidth={1} strokeDasharray="3 3" fillOpacity={1} fill="url(#colorInf)" name="Inflation" />
 
-                  {/* Highlight Peak & Bottom for REAL YIELD (Gold's Core Driver) */}
-                  {macroHistory.length > 3 && (() => {
+                  {/* Nominal uses its own scale */}
+                  <Area yAxisId="nom" type="monotone" dataKey="nominal_yield" stroke="#3b82f6" strokeWidth={1} strokeOpacity={0.5} fillOpacity={1} fill="url(#colorNominal)" name="Nominal" />
+
+                  {/* Real & Inflation share a zoomed scale to show 0.01% changes clearly */}
+                  <Area yAxisId="vol" type="monotone" dataKey="real_yield" stroke="#fbbf24" strokeWidth={3} fillOpacity={1} fill="url(#colorReal)" name="Real" />
+                  <Area yAxisId="vol" type="monotone" dataKey="breakeven_inflation" stroke="#a855f7" strokeWidth={1} strokeDasharray="3 3" fillOpacity={1} fill="url(#colorInf)" name="Inflation" />
+
+                  {/* Highlight Peak & Bottom for Real (on the zoomed scale) */}
+                  {(() => {
                     const validData = macroHistory.filter(d => d.real_yield != null);
                     if (validData.length === 0) return null;
-                    const vals = validData.map(d => d.real_yield);
-                    const high = Math.max(...vals);
-                    const low = Math.min(...vals);
-                    const highPoint = validData.find(d => d.real_yield === high);
-                    const lowPoint = validData.find(d => d.real_yield === low);
+                    const maxPt = validData.reduce((prev, curr) => (curr.real_yield > prev.real_yield ? curr : prev), validData[0]);
+                    const minPt = validData.reduce((prev, curr) => (curr.real_yield < prev.real_yield ? curr : prev), validData[0]);
 
                     return (
                       <>
-                        {highPoint && (
+                        {maxPt && (
                           <ReferenceDot
-                            x={highPoint.log_date}
-                            y={high}
+                            yAxisId="vol"
+                            x={maxPt.log_date}
+                            y={maxPt.real_yield}
                             r={4}
-                            fill="#fbbf24"
-                            stroke="#fff"
+                            fill="#fff"
+                            stroke="#fbbf24"
                             strokeWidth={2}
-                            label={{ position: 'top', value: `Top: ${high.toFixed(2)}%`, fill: '#fbbf24', fontSize: 10, fontWeight: '900' }}
+                            label={{ position: 'top', value: `Top: ${maxPt.real_yield}%`, fill: '#fbbf24', fontSize: 10, fontWeight: 'bold' }}
                           />
                         )}
-                        {lowPoint && (
+                        {minPt && minPt !== maxPt && (
                           <ReferenceDot
-                            x={lowPoint.log_date}
-                            y={low}
+                            yAxisId="vol"
+                            x={minPt.log_date}
+                            y={minPt.real_yield}
                             r={4}
-                            fill="#fbbf24"
-                            stroke="#fff"
+                            fill="#fff"
+                            stroke="#fbbf24"
                             strokeWidth={2}
-                            label={{ position: 'bottom', value: `Btm: ${low.toFixed(2)}%`, fill: '#fbbf24', fontSize: 10, fontWeight: '900' }}
+                            label={{ position: 'bottom', value: `Btm: ${minPt.real_yield}%`, fill: '#fbbf24', fontSize: 10, fontWeight: 'bold' }}
                           />
                         )}
                       </>
                     );
                   })()}
-
                 </AreaChart>
-
               </ResponsiveContainer>
             </div>
           </div>
