@@ -55,7 +55,7 @@ Strategy & FedWatch:
 
   try {
     const ai = getAIInstance();
-    if (!ai) return "AI_CORE: Neural link disabled. Please check Vercel environment variables.";
+    if (!ai) return "AI_CORE: Neural link disabled. 请检查 Vercel 环境变量名是否以 'VITE_' 开头 (例如: VITE_GEMINI_API_KEY)。修改后请重新部署项目。";
     // Use the model name from the previous working version if gemini-2.0 fails 
     // or stick to a safer version
     const model = ai.getGenerativeModel({ model: "gemini-1.5-flash" });
