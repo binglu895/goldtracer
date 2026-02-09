@@ -127,25 +127,31 @@ def calc_rsi(ticker: str = "GC=F", period: int = 14) -> Optional[float]:
     except:
         return None
 
-def calc_fed_watch(zq_price: float, current_rate: float = 5.33) -> Dict[str, Any]:
+def calc_fed_watch(zq_price: float, current_rate: float = None) -> Dict[str, Any]:
     """
     Calculate FedWatch probabilities based on 30-Day Fed Funds Futures (ZQ=F).
     Simplified model for the next meeting (March 18, 2026).
+    Data source: CME 30-Day Federal Funds Futures
     """
     if zq_price is None:
         return {}
     
+    # If current rate not provided, use midpoint of current target range (5.25-5.50)
+    if current_rate is None:
+        current_rate = 5.375
+    
+    # ZQ=F price calculation: For fed funds futures, the price is 100 minus the implied rate
+    # Example: If ZQ=F = 94.625, implied rate = 100 - 94.625 = 5.375%
     implied_rate = 100 - zq_price
     
-    # Simple probability of a 25bp cut
-    # Prob = (Current Rate - Implied Rate) / 0.25
-    # If implied is 5.33 and current is 5.33, prob is 0.
-    # If implied is 5.08, prob is 1.0 (100% of 25bp cut)
-    
+    # Calculate probability based on how much the implied rate differs from current
+    # If implied rate is lower than current, market expects a cut
     diff = current_rate - implied_rate
+    
+    # Each 25bp difference = 100% probability of one 25bp move
     prob_cut = (diff / 0.25) * 100
     
-    # Clamp results
+    # Clamp results to 0-100%
     prob_cut = min(max(prob_cut, 0), 100)
     prob_pause = 100 - prob_cut
     
@@ -156,7 +162,8 @@ def calc_fed_watch(zq_price: float, current_rate: float = 5.33) -> Dict[str, Any
         "meeting_datetime_utc": "2026-03-18T19:00:00Z",
         "prob_pause": round(prob_pause, 1),
         "prob_cut_25": round(prob_cut, 1),
-        "implied_rate": round(implied_rate, 3)
+        "implied_rate": round(implied_rate, 3),
+        "current_rate": current_rate
     }
 
 

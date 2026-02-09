@@ -66,6 +66,8 @@ const App: React.FC = () => {
   const [historyRange, setHistoryRange] = useState('1mo');
   const [macroHistory, setMacroHistory] = useState<any[]>([]);
   const [technicalRange, setTechnicalRange] = useState('1D');
+  const [countdown, setCountdown] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
 
 
   useEffect(() => {
@@ -85,6 +87,56 @@ const App: React.FC = () => {
     };
     loadHistory();
   }, [historyRange]);
+
+  // Countdown timer for FedWatch
+  useEffect(() => {
+    const updateCountdown = () => {
+      const fed = dashboard?.today_strategy?.fedwatch;
+      if (!fed?.meeting_datetime_utc) {
+        setCountdown('');
+        return;
+      }
+
+      const now = new Date();
+      const meetingDate = new Date(fed.meeting_datetime_utc);
+      const diff = meetingDate.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setCountdown('会议进行中');
+        return;
+      }
+
+      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+
+      setCountdown(`${days}天 ${hours}小时 ${minutes}分`);
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 60000); // Update every minute
+    return () => clearInterval(interval);
+  }, [dashboard]);
+
+  const triggerSync = async (full: boolean = false) => {
+    setIsSyncing(true);
+    try {
+      const apiUrl = typeof window !== 'undefined' && (window as any).VITE_API_URL ? (window as any).VITE_API_URL : '';
+      const url = `${apiUrl}/api/cron/sync${full ? '?full=true' : ''}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      console.log('Sync result:', data);
+      alert(full ? '全量同步完成' : '快速同步完成');
+      // Reload dashboard data
+      const newData = await fetchDashboardState();
+      if (newData) setDashboard(newData);
+    } catch (error) {
+      console.error('Sync error:', error);
+      alert('同步失败: ' + error.message);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const getTicker = (symbol: string) => (dashboard?.tickers || []).find((t: any) => t.ticker === symbol);
   const getMacro = (name: string) => (dashboard?.macro || []).find((m: any) => m.indicator_name === name);
@@ -145,13 +197,25 @@ const App: React.FC = () => {
           </div>
           <nav className="hidden md:flex items-center gap-6 text-[11px] font-bold text-gray-400 uppercase tracking-widest">
             <a href="#" className="text-amber-500">情报终端</a>
-            <a href="#" className="hover:text-white transition-colors">宏观透视</a>
-            <a href="#" className="hover:text-white transition-colors">智能研报</a>
-            <a href="#" className="hover:text-white transition-colors">系统设置</a>
+            <a href="#" className="hover:text-white transition">持仓分析</a>
+            <a href="#" className="hover:text-white transition">AI视图</a>
           </nav>
         </div>
-
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => triggerSync(false)}
+            disabled={isSyncing}
+            className="px-2 py-1 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 rounded text-[9px] font-bold text-amber-500 uppercase tracking-wider transition disabled:opacity-50"
+          >
+            {isSyncing ? '同步中...' : '快速同步'}
+          </button>
+          <button
+            onClick={() => triggerSync(true)}
+            disabled={isSyncing}
+            className="px-2 py-1 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded text-[9px] font-bold text-purple-500 uppercase tracking-wider transition disabled:opacity-50"
+          >
+            全量同步
+          </button>
           <div className="flex items-center gap-2 bg-[#121214] px-3 py-1 rounded-full border border-[#232326]">
             <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
             <span className="text-[10px] font-bold text-gray-300 font-mono uppercase">AI Compute: Online</span>
@@ -345,6 +409,9 @@ const App: React.FC = () => {
                       <span className="text-[10px] text-gray-500 uppercase font-bold block">{fed?.meeting_name || 'FedWatch 会议概率'}</span>
                       {fed?.meeting_time && (
                         <span className="text-[8px] text-amber-500/80 font-mono block mt-0.5">{fed.meeting_time}</span>
+                      )}
+                      {countdown && (
+                        <span className="text-[9px] text-red-500 font-black block mt-1">⏱ 倒计时: {countdown}</span>
                       )}
                     </div>
                     <div className="space-y-3">
