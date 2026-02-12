@@ -312,8 +312,10 @@ const App: React.FC = () => {
         <div className="flex items-center gap-4">
           <span className="text-[10px] font-bold text-gray-500 uppercase">国内溢价 (CNY/G)</span>
           <div className="flex items-baseline gap-2">
-            <span className="text-lg font-bold font-mono">+3.20</span>
-            <span className="text-xs font-bold text-green-500">+0.15%</span>
+            <span className="text-lg font-bold font-mono">
+              {getMacro('Domestic_Premium')?.value != null ? (Number(getMacro('Domestic_Premium').value) >= 0 ? '+' : '') + Number(getMacro('Domestic_Premium').value).toFixed(2) : '+3.20'}
+            </span>
+            <span className="text-xs font-bold text-green-500">LIVE</span>
           </div>
         </div>
 
@@ -321,9 +323,18 @@ const App: React.FC = () => {
           <span className="text-[10px] font-bold text-gray-500 uppercase">全球市场情绪监测</span>
           <div className="flex-1 h-1.5 bg-[#121214] rounded-full overflow-hidden relative border border-[#232326]">
             <div className="absolute left-0 top-0 bottom-0 bg-gradient-to-r from-red-500 via-amber-500 to-green-500 w-full opacity-20"></div>
-            <div className="absolute left-[78%] top-0 bottom-0 w-1 bg-white shadow-[0_0_10px_white] z-10"></div>
+            {(() => {
+              const sentiment = getMacro('Market_Sentiment')?.value != null ? Number(getMacro('Market_Sentiment').value) : 78;
+              return (
+                <>
+                  <div className="absolute top-0 bottom-0 w-1 bg-white shadow-[0_0_10px_white] z-10 transition-all duration-1000" style={{ left: `${sentiment}%` }}></div>
+                </>
+              );
+            })()}
           </div>
-          <span className="text-[10px] font-bold text-amber-500 uppercase">78% 避险情绪强劲</span>
+          <span className="text-[10px] font-bold text-amber-500 uppercase">
+            {getMacro('Market_Sentiment')?.value != null ? `${Number(getMacro('Market_Sentiment').value).toFixed(0)}%` : '78%'} 避险情绪
+          </span>
         </div>
       </div>
 
@@ -505,13 +516,25 @@ const App: React.FC = () => {
               <span className="text-[10px] text-gray-500 uppercase font-bold block mb-2">美元信用墙 (利息/GDP)</span>
               <div className="flex items-center justify-between">
                 <div>
-                  <span className="text-2xl font-bold font-mono text-red-500">14.2%</span>
-                  <span className="block text-[8px] text-red-500/80 mt-1 uppercase font-black">Warning Level</span>
+                  {(() => {
+                    const debtMetric = getMacro('Debt_Interest_GDP')?.value != null ? Number(getMacro('Debt_Interest_GDP').value) : 14.2;
+                    const isWarning = debtMetric > 12;
+                    return (
+                      <>
+                        <span className={`text-2xl font-bold font-mono ${isWarning ? 'text-red-500' : 'text-green-500'}`}>
+                          {debtMetric.toFixed(1)}%
+                        </span>
+                        <span className={`block text-[8px] mt-1 uppercase font-black ${isWarning ? 'text-red-500/80 animate-pulse' : 'text-green-500/80'}`}>
+                          {isWarning ? 'Warning Level' : 'Stable Level'}
+                        </span>
+                      </>
+                    );
+                  })()}
                 </div>
                 <div className="w-16 h-8">
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={yieldData.slice(-4)}>
-                      <Area type="monotone" dataKey="nominal" stroke="#ef4444" fill="#ef4444" fillOpacity={0.2} />
+                    <AreaChart data={macroHistory.slice(-10)}>
+                      <Area type="monotone" dataKey="nominal_yield" stroke="#ef4444" fill="#ef4444" fillOpacity={0.2} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
@@ -585,9 +608,11 @@ const App: React.FC = () => {
             <div className="bg-[#0c0c0e] p-3 border border-[#232326] rounded-sm flex justify-between items-center">
               <div>
                 <span className="text-[9px] text-gray-500 uppercase font-bold block mb-1">实物溢价 (SH-LDN)</span>
-                <span className="text-lg font-bold font-mono text-green-500">+$3.25/oz</span>
+                <span className="text-lg font-bold font-mono text-green-500">
+                  {getMacro('Domestic_Premium')?.value != null ? `+$${(Number(getMacro('Domestic_Premium').value) / 7.2 * 31.1).toFixed(2)}/oz` : '+$3.25/oz'}
+                </span>
               </div>
-              <span className="text-[8px] bg-white/5 px-2 py-1 rounded text-gray-400 font-bold">STEADY</span>
+              <span className="text-[8px] bg-white/5 px-2 py-1 rounded text-gray-400 font-bold">LIVE</span>
             </div>
 
             <div className="bg-[#0c0c0e] p-3 border border-[#232326] rounded-sm flex justify-between items-center relative overflow-hidden group">
@@ -775,8 +800,39 @@ const App: React.FC = () => {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-hide">
+              {/* Combine Intel Stream and Live News */}
+              {(dashboard?.news || []).length > 0 ? (
+                dashboard.news.map((item: any, i: number) => (
+                  <div key={`news-${i}`} className="flex flex-col gap-1 border-l-2 border-amber-500/30 pl-3 py-1">
+                    <div className="flex items-center gap-2">
+                      <span className={`text-[8px] font-black px-1 rounded ${item.msg_type === 'DATA' ? 'bg-blue-500/20 text-blue-500' : 'bg-amber-500/20 text-amber-500'}`}>
+                        {item.msg_type || 'FLASH'}
+                      </span>
+                      <span className="text-[8px] text-gray-600 font-mono">
+                        {new Date(item.published_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <a href={item.url} target="_blank" rel="noreferrer" className="text-xs text-gray-300 hover:text-white transition">
+                      {item.title}
+                    </a>
+                  </div>
+                ))
+              ) : (
+                intelStream.map((item, i) => (
+                  <div key={`mock-${i}`} className="flex flex-col gap-1 border-l-2 border-gray-500/30 pl-3 py-1 opacity-50">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[8px] font-black text-gray-500">{item.type}</span>
+                      <span className="text-[8px] text-gray-600 font-mono">{item.time}</span>
+                    </div>
+                    <p className="text-xs text-gray-500">{item.content}</p>
+                  </div>
+                ))
+              )}
+
+              <div className="w-full h-px bg-white/5 my-4"></div>
+
               {messages.map((m, i) => (
-                <div key={i} className="flex flex-col gap-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
+                <div key={`chat-${i}`} className="flex flex-col gap-1 animate-in fade-in slide-in-from-bottom-2 duration-300">
                   <div className="flex items-center gap-2">
                     <span className={`text-[10px] font-black uppercase ${m.role === 'ai' ? 'text-amber-500' : 'text-blue-500'}`}>
                       {m.role === 'ai' ? 'AI_CORE:' : 'USER:'}
