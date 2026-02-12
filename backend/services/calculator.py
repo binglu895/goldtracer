@@ -24,16 +24,18 @@ def fetch_yahoo_finance_raw(ticker: str, period: str = "2d") -> Optional[Dict[st
     Directly call Yahoo Finance API to avoid heavy pandas/yfinance dependencies.
     """
     import time
-    # Use interval=1m and range=1d for the absolute latest data tick
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range=1d&interval=1m&_={int(time.time())}"
+    import random
+    # query2 is often less restricted for cloud IPs
+    base_url = random.choice(["query1", "query2"])
+    url = f"https://{base_url}.finance.yahoo.com/v8/finance/chart/{ticker}?range=1d&interval=1m&_={int(time.time())}"
     # Use more realistic headers to avoid Vercel/AWS IP blocking
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.9',
+        'Referer': 'https://finance.yahoo.com/',
+        'Origin': 'https://finance.yahoo.com',
         'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Cache-Control': 'max-age=0',
     }
     try:
         response = requests.get(url, headers=headers, timeout=10)
