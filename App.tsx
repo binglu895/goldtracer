@@ -277,10 +277,10 @@ const App: React.FC = () => {
           <span className="text-[10px] font-bold text-gray-500 uppercase">XAU/USD 现货黄金</span>
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold font-mono">
-              {gold?.last_price != null ? gold.last_price.toFixed(2) : '---'}
+              {getTicker('XAUUSD=X')?.last_price != null ? getTicker('XAUUSD=X').last_price.toFixed(2) : '---'}
             </span>
-            <span className={`text-xs font-bold ${gold?.change_percent != null && gold.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {gold?.change_percent != null ? (gold.change_percent >= 0 ? '+' : '') + gold.change_percent.toFixed(2) + '%' : '---'}
+            <span className={`text-xs font-bold ${getTicker('XAUUSD=X')?.change_percent != null && getTicker('XAUUSD=X').change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {getTicker('XAUUSD=X')?.change_percent != null ? (getTicker('XAUUSD=X').change_percent >= 0 ? '+' : '') + getTicker('XAUUSD=X').change_percent.toFixed(2) + '%' : '---'}
             </span>
           </div>
         </div>
@@ -289,10 +289,10 @@ const App: React.FC = () => {
           <span className="text-[10px] font-bold text-gray-500 uppercase">USD/CNY 离岸汇率</span>
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold font-mono">
-              {usdCny?.last_price != null ? usdCny.last_price.toFixed(4) : '---'}
+              {getTicker('USDCNH=X')?.last_price != null ? getTicker('USDCNH=X').last_price.toFixed(4) : '---'}
             </span>
-            <span className={`text-xs font-bold ${usdCny?.change_percent != null && usdCny.change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {usdCny?.change_percent != null ? (usdCny.change_percent >= 0 ? '+' : '') + usdCny.change_percent.toFixed(2) + '%' : '---'}
+            <span className={`text-xs font-bold ${getTicker('USDCNH=X')?.change_percent != null && getTicker('USDCNH=X').change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {getTicker('USDCNH=X')?.change_percent != null ? (getTicker('USDCNH=X').change_percent >= 0 ? '+' : '') + getTicker('USDCNH=X').change_percent.toFixed(2) + '%' : '---'}
             </span>
           </div>
         </div>

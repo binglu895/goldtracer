@@ -60,8 +60,8 @@ class GoldDataSyncer:
 
     def sync_all(self):
         report = {"updated": [], "errors": []}
-        # 1. High Frequency Tickeres
-        tickers = ["GC=F", "^TNX", "DX-Y.NYB", "ZQ=F", "CNY=X"]
+        # 1. High Frequency Tickers (Spot + Futures)
+        tickers = ["XAUUSD=X", "^TNX", "DX-Y.NYB", "ZQ=F", "USDCNH=X"]
         for symbol in tickers:
             data = self.fetch_market_data(symbol)
             if data:
@@ -100,22 +100,22 @@ class GoldDataSyncer:
             # 518880.SS (Gold ETF) is a good proxy for liquidity
             domestic_proxy = self.fetch_market_data("518880.SS")
             if domestic_proxy:
-                # Convert ETF price to approx gold gram price (Value / 10 is rough proxy for grams in some ETFs, but better to compare vs GC=F)
-                # For simplicity in this version, we calculate the implied premium using GC=F + USDCNY vs Spot
-                # Real premium calculation:
-                premium = calc_domestic_premium(gold_price, usd_cny, domestic_proxy['last_price'] * 100) # Assuming 100 multiplier for proxy comparison
+                # Huaan Gold ETF (518880.SS) approx 1 share = 0.01g gold
+                # We need to compare it against International CNY price per gram
+                sh_gram_price = domestic_proxy['last_price'] * 100
+                premium = calc_domestic_premium(gold_price, usd_cny, sh_gram_price)
                 
                 self.supabase.table("macro_indicators").upsert({
                     "indicator_name": "Domestic_Premium",
-                    "value": premium if premium else 3.25,
+                    "value": premium if premium is not None else 3.25,
                     "unit": "CNY/g",
-                    "source": "Yahoo (518880.SS vs GC=F)"
+                    "source": f"Yahoo (518880.SS vs Spot)"
                 }, on_conflict="indicator_name").execute()
 
             self.supabase.table("macro_indicators").upsert({
                 "indicator_name": "USD_CNY",
                 "value": usd_cny,
-                "source": "Yahoo"
+                "source": "Yahoo (USDCNH=X)"
              }, on_conflict="indicator_name").execute()
 
         # 2.2 Debt Wall (Interest as % of GDP)
@@ -314,7 +314,7 @@ class GoldDataSyncer:
         report = {"updated": [], "errors": []}
         try:
             # Fetch latest Gold Price for correlation to make data dynamic
-            gold_data = self.supabase.table("market_data_cache").select("*").eq("ticker", "GC=F").execute()
+            gold_data = self.supabase.table("market_data_cache").select("*").eq("ticker", "XAUUSD=X").execute()
             gold_price = 2300.0 # Fallback default
             change_percent = 0.0
             
@@ -384,7 +384,7 @@ class GoldDataSyncer:
         """Fetches latest Gold news from Yahoo RSS and stores in DB."""
         import xml.etree.ElementTree as ET
         report = {"updated": 0, "errors": []}
-        url = "https://finance.yahoo.com/rss/headline?s=GC=F"
+        url = "https://finance.yahoo.com/rss/headline?s=XAUUSD=X"
         try:
             headers = {'User-Agent': 'Mozilla/5.0'}
             response = requests.get(url, headers=headers, timeout=10)

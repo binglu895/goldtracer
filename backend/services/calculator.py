@@ -23,7 +23,8 @@ def fetch_yahoo_finance_raw(ticker: str, period: str = "2d") -> Optional[Dict[st
     """
     Directly call Yahoo Finance API to avoid heavy pandas/yfinance dependencies.
     """
-    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={period}&interval=1d"
+    import time
+    url = f"https://query1.finance.yahoo.com/v8/finance/chart/{ticker}?range={period}&interval=1d&_={int(time.time())}"
     # Use more realistic headers to avoid Vercel/AWS IP blocking
     headers = {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
