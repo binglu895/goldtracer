@@ -176,7 +176,7 @@ const App: React.FC = () => {
   const getMacro = (name: string) => (dashboard?.macro || []).find((m: any) => m.indicator_name === name);
 
   const gold = getTicker('GC=F');
-  const usdCny = getTicker('CNY=X');
+  const usdCny = getTicker('USDCNH=X');
   const realYield = getMacro('10Y_Real_Yield');
   const tnx = getTicker('^TNX');
 
@@ -277,10 +277,10 @@ const App: React.FC = () => {
           <span className="text-[10px] font-bold text-gray-500 uppercase">XAU/USD 现货黄金</span>
           <div className="flex items-baseline gap-2">
             <span className="text-lg font-bold font-mono">
-              {getTicker('XAUUSD=X')?.last_price != null ? getTicker('XAUUSD=X').last_price.toFixed(2) : '---'}
+              {getTicker('GC=F')?.last_price != null ? getTicker('GC=F').last_price.toFixed(2) : '---'}
             </span>
-            <span className={`text-xs font-bold ${getTicker('XAUUSD=X')?.change_percent != null && getTicker('XAUUSD=X').change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
-              {getTicker('XAUUSD=X')?.change_percent != null ? (getTicker('XAUUSD=X').change_percent >= 0 ? '+' : '') + getTicker('XAUUSD=X').change_percent.toFixed(2) + '%' : '---'}
+            <span className={`text-xs font-bold ${getTicker('GC=F')?.change_percent != null && getTicker('GC=F').change_percent >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+              {getTicker('GC=F')?.change_percent != null ? (getTicker('GC=F').change_percent >= 0 ? '+' : '') + getTicker('GC=F').change_percent.toFixed(2) + '%' : '---'}
             </span>
           </div>
         </div>

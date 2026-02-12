@@ -22,16 +22,26 @@ class GoldDataSyncer:
         
         try:
             meta = raw['meta']
-            quote = raw['indicators']['quote'][0]
-            last_price = meta['regularMarketPrice']
-            open_price = quote['open'][0]
+            # Fallback for last price: regularMarketPrice or the latest timestamp's close
+            last_price = meta.get('regularMarketPrice')
             
+            quote = raw['indicators']['quote'][0]
+            closes = [c for c in quote.get('close', []) if c is not None]
+            if not last_price and closes:
+                last_price = closes[-1]
+            
+            opens = [o for o in quote.get('open', []) if o is not None]
+            open_price = opens[0] if opens else last_price
+            
+            if not last_price:
+                return None
+
             data = {
                 "ticker": ticker,
                 "last_price": last_price,
                 "open_price": open_price,
-                "high_price": quote['high'][0],
-                "low_price": quote['low'][0],
+                "high_price": max(quote.get('high', [last_price])) or last_price,
+                "low_price": min(quote.get('low', [last_price])) or last_price,
                 "change_percent": ((last_price / open_price) - 1) * 100 if open_price else 0
             }
             self.cache[ticker] = data
@@ -60,8 +70,10 @@ class GoldDataSyncer:
 
     def sync_all(self):
         report = {"updated": [], "errors": []}
-        # 1. High Frequency Tickers (Spot + Futures)
-        tickers = ["XAUUSD=X", "^TNX", "DX-Y.NYB", "ZQ=F", "USDCNH=X"]
+        # 1. High Frequency Tickers (Futures & FX)
+        # GC=F is Gold Futures (most reliable live feed on Yahoo)
+        # USDCNH=X is offshore Yuan
+        tickers = ["GC=F", "^TNX", "DX-Y.NYB", "ZQ=F", "USDCNH=X"]
         for symbol in tickers:
             data = self.fetch_market_data(symbol)
             if data:
@@ -101,7 +113,7 @@ class GoldDataSyncer:
             domestic_proxy = self.fetch_market_data("518880.SS")
             if domestic_proxy:
                 # Huaan Gold ETF (518880.SS) approx 1 share = 0.01g gold
-                # We need to compare it against International CNY price per gram
+                # We compare vs the real synced Gold Price (GC=F) in gram CNY
                 sh_gram_price = domestic_proxy['last_price'] * 100
                 premium = calc_domestic_premium(gold_price, usd_cny, sh_gram_price)
                 
@@ -109,7 +121,7 @@ class GoldDataSyncer:
                     "indicator_name": "Domestic_Premium",
                     "value": premium if premium is not None else 3.25,
                     "unit": "CNY/g",
-                    "source": f"Yahoo (518880.SS vs Spot)"
+                    "source": f"Yahoo (518880.SS vs Futures)"
                 }, on_conflict="indicator_name").execute()
 
             self.supabase.table("macro_indicators").upsert({
