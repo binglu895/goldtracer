@@ -2,7 +2,7 @@ import requests
 import os
 from datetime import datetime
 from typing import Optional, Dict, Any
-from .calculator import calc_real_yield, calc_pivot_points, fetch_yahoo_finance_raw, calc_rsi, fetch_indicator_price, calc_fed_watch
+from .calculator import calc_real_yield, calc_pivot_points, fetch_yahoo_finance_raw, calc_rsi, fetch_indicator_price, calc_fed_watch, calc_domestic_premium
 
 class GoldDataSyncer:
     def __init__(self, supabase_client):
